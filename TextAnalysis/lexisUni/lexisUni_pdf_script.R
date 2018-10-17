@@ -59,17 +59,36 @@ View(my_data1)
 #Dataset with each work in or row associated with its pdf source 
 my_data2 <- my_data %>% 
   unnest() %>% 
-  unnest_tokens(word, text, strip_numeric = TRUE)
+  unnest_tokens(word, text, to_lower = T
+                # strip_numeric = TRUE
+                )%>% 
+  filter(!word %in% c("lexis",
+                      "nexis", "Uni",
+                      "about lexisnexis",
+                      "Privacy Policy",
+                      "Terms & Conditions", "Copyright © 2018 LexisNexis",
+                      " | ",  "@", "lexisnexis"))
+
 View(my_data2)
+
 # Word per row with grouping by document and summary of word count 
 
 my_data3 <- my_data %>%
   unnest() %>% 
-  unnest_tokens(word, text, strip_numeric = TRUE) %>%  # removing all numbers
+  unnest_tokens(word, text, to_lower = T) %>% # removing all numbers
+  filter(!word %in% c("lexis",
+                      "nexis", "Uni",
+                      "about lexisnexis",
+                      "Privacy Policy",
+                      "Terms & Conditions", "Copyright © 2018 LexisNexis",
+                      " | ",  "@", "lexisnexis")) %>% 
   group_by(document, word) %>% 
   summarise(count = n())
-
+?arrange()
+  
 View(my_data3)
+
+get_sentiments("afinn") %>% head(20)
 
 # --- other stuff explored
 
