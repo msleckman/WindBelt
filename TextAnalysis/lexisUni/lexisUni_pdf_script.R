@@ -30,7 +30,7 @@ Windbelt_Project_Database_1_ <- read_csv("G:/Data/wind project dataset/Windbelt 
 wind_df <- Windbelt_Project_Database_1_
 
 ### Packages 
-install.packages("pdftools", "devtools")
+# install.packages("pdftools", "devtools")
 library(pdftools)
 library(tm)
 # library(tm.plugin.lexisnexis)
@@ -38,11 +38,12 @@ library(devtools)
 # install.packages("tidytext")
 library(tidytext)
 library(broom)
-install.packages("tidyverse")
+# install.packages("tidyverse")
 library(data.table)
 library(tidyverse)
-### tidytext()
 
+
+### tidytext()
 directory <- "G:/TextAnalysis/lexisUni/sample_pdfs"
 pdfs_2 <- paste(directory, "/", list.files(directory, pattern = "*.pdf", ignore.case = T), sep = "")
 pdfs_names <- list.files(directory, pattern = "*.pdf", ignore.case = T)
@@ -84,11 +85,32 @@ my_data3 <- my_data %>%
                       " | ",  "@", "lexisnexis")) %>% 
   group_by(document, word) %>% 
   summarise(count = n())
-?arrange()
+# ?arrange()
   
 View(my_data3)
 
+---
+
 get_sentiments("afinn") %>% head(20)
+#afinn scores/ranks from -5 to +5 for positive or negative sentiment. 
+
+my_data3_bind <-my_data3 %>% 
+  left_join(get_sentiments("nrc"), by = "word")  
+  # filter(sentiment !="NA") 
+View(my_data3_bind)
+
+count_mydata3_bind <-my_data3_bind %>% 
+  count(word, sentiment, sort = TRUE) 
+View(count_mydata3_bind)
+
+total_sentiment <- count_mydata3_bind %>% 
+  group_by(document, sentiment) %>% 
+  summarise(totals = sum(n)) %>% 
+  filter(sentiment !="NA") %>% 
+  arrange(document)
+View(total_sentiment)
+
+#group by project and then create graph
 
 # --- other stuff explored
 
