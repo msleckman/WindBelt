@@ -1,0 +1,192 @@
+---
+title: "NexisUni_pdf_scraping"
+author: "Margaux Sleckman"
+date: "October 18, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### To do (notes from casey)
+ ceate a dataframe for every pdf 
+ take a pdf list - 
+ lapply - 
+ tidytext::tokenize function - every element in list become df. rbind dfs 
+ 
+ str_count() how many times does a search term come up 
+ str_match()
+ regex() 
+ Download as docx and then use xml package  
+ Convert to dataframe 
+ 
+ 1rst step of getting into a dataframe
+ tm package uses corpus - tidytext
+ Analyzing 
+ pdf into df  
+
+
+
+```{r packages_read_in}
+
+### Packages 
+
+# install.packages("pdftools", "devtools")
+library(pdftools)
+library(tm)
+# library(tm.plugin.lexisnexis)
+library(devtools)
+# install.packages("tidytext")
+library(tidytext)
+library(broom)
+# install.packages("tidyverse")
+library(data.table)
+library(tidyverse)
+
+### Read in 
+Windbelt_Project_Database_1_ <- read_csv("G:/Data/wind project dataset/WindbeltProjectDatabase.csv")
+wind_df <- Windbelt_Project_Database_1_
+
+
+```
+
+
+```{r setup}
+
+directory <- "G:/TextAnalysis/lexisUni/sample_pdfs"
+pdfs_2 <- paste(directory, "/", list.files(directory, pattern = "*.pdf", ignore.case = T), sep = "")
+pdfs_names <- list.files(directory, pattern = "*.pdf", ignore.case = T)
+pdfs_names
+pdfs_text <- map(pdfs_2, pdftools::pdf_text)
+head(pdfs_text,2)
+
+
+```
+
+
+```{r dataframe1}
+
+#each row is a pdf doc name (document) with the full pdf text
+
+my_data <- data_frame(document = pdfs_names, text = pdfs_text)
+View(my_data)
+
+# text column : each row is an element of a list 
+
+```
+
+
+```{r dataframe2}
+
+# dataset with each page in one row
+my_data1 <- my_data %>% 
+  unnest() # splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
+
+View(my_data1)
+
+```
+
+```{r dataframe3}
+
+#Dataset with each work in or row associated with its pdf source 
+my_data2 <- my_data %>% 
+  unnest() %>% 
+  tidytext::unnest_tokens(output = word, input = text, token = 
+                          "words", to_lower = T
+                # strip_numeric = TRUE
+                )%>%      
+  filter(!word %in% c("lexis",
+                      "nexis", "Uni",
+                      "about lexisnexis",
+                      "Privacy Policy",
+                      "Terms & Conditions", "Copyright © 2018 LexisNexis",
+                      " | ",  "@", "lexisnexis")) 
+
+# %>% gsub("[^A-Za-z0-9,;._-]","")
+View(my_data2)
+
+# note: unnest_tokens() splits text by respective element (ie word, phrase, ...) word is default
+
+```
+
+
+```{r group_by}
+
+my_data3 <- my_data2 %>%
+  group_by(document, word) %>% 
+  summarise(count = n())
+# counts the number of time a specific words is found in the page pdf.
+
+View(my_data3)
+
+# add new count column with most freq. words
+```
+
+#### Compare sentiment tests:
+
+```{r sentimentdictionaries}
+
+# using 'afinn' vs. 'nrc sentiment tests.
+get_sentiments("afinn") # associates word with a sentiment score
+#afinn scores/ranks from -5 to +5 for positive or negative sentiment. 
+get_sentiments("nrc") # associatd word with another sentiment feeling word
+
+View(get_sentiments("afinn"))
+View(get_sentiments("nrc"))
+
+# we want scores not categorized words, so we will start by using afinn
+
+```
+
+```{r bind_sentiment}
+
+my_data3_bind <-my_data3 %>% 
+  left_join(get_sentiments("afinn"), by = "word")  
+
+View(my_data3_bind)
+# Note: Many of the scores per words are NA simply because that word does not exist. 
+
+```
+
+
+```{r projectscores}
+
+count_mydata3_bind <-my_data3_bind %>% 
+  count(word, score, sort = TRUE) 
+
+View(count_mydata3_bind)
+
+total_sentiment <- my_data3_bind %>% 
+  filter(score !="NA") %>% 
+  summarise(totals = mean(score)) %>%
+  group_by()
+
+View(total_sentiment)
+```
+
+
+#Populate 
+```{r negative_words}
+
+library(stringr)
+
+negative_words <- paste0(c('negative|postpone|against|delay|lawsuit|litigation|protest|cost*|stop'))
+
+# Function to replace `character(0)` with NAs as NULL values are dropped when flattening list
+# inspired by: https://colinfay.me/purrr-set-na/
+charnull_set <- function(x){
+  p <- as_mapper(~identical(., character(0)))
+  x[p(x)] <- NA
+  return(x)
+}
+
+my_data1 <- my_data1 %>%
+  mutate(query_hits = str_extract_all(text, pattern = regex(negative_words, ignore_case=TRUE)) %>%  # Extract all the keywords
+           map(~charnull_set(.x)) %>%   # Replace character(0) with NAs
+           map_chr(~glue::glue_collapse(.x, sep = ";")) %>%   # collapse the multiple hits
+           tolower) # all our keywords are lower case
+
+
+```
+
