@@ -1,11 +1,11 @@
 
 #########################################
-# Windbelt script brainstorm lexisUni
-#
-#
+# Windbelt script brainstorm lexisUni   #
+#                                       #
+#                                       #
 #########################################
 
-#----Notes------------------------------------
+#----Notes-------------------------------
 
 # ceate a dataframe for every pdf 
 # take a pdf list - 
@@ -42,7 +42,6 @@ library(broom)
 library(data.table)
 library(tidyverse)
 
-
 ### tidytext()
 directory <- "G:/TextAnalysis/lexisUni/sample_pdfs"
 pdfs_2 <- paste(directory, "/", list.files(directory, pattern = "*.pdf", ignore.case = T), sep = "")
@@ -52,9 +51,10 @@ pdfs_text <- map(pdfs_2, pdftools::pdf_text)
 pdfs_text
 my_data <- data_frame(document = pdfs_names, text = pdfs_text)
 
+View(my_data)
 # dataset with each page in one row
 my_data1 <- my_data %>% 
-  unnest()
+  unnest() # splits pdf text by page
 View(my_data1)
 
 #Dataset with each work in or row associated with its pdf source 
@@ -69,7 +69,6 @@ my_data2 <- my_data %>%
                       "Privacy Policy",
                       "Terms & Conditions", "Copyright © 2018 LexisNexis",
                       " | ",  "@", "lexisnexis"))
-
 View(my_data2)
 
 # Word per row with grouping by document and summary of word count 
@@ -91,23 +90,34 @@ View(my_data3)
 
 ---
 
-get_sentiments("afinn") %>% head(20)
+# using 'afinn' vs. 'nrc sentiment tests.
+get_sentiments("afinn") # associates word with a sentiment score
 #afinn scores/ranks from -5 to +5 for positive or negative sentiment. 
+get_sentiments("nrc") # associatd word with another sentiment feeling word
+View(get_sentiments("afinn"))
+View(get_sentiments("nrc"))
+---
 
 my_data3_bind <-my_data3 %>% 
-  left_join(get_sentiments("nrc"), by = "word")  
-  # filter(sentiment !="NA") 
+  left_join(get_sentiments("afinn"), by = "word")  
 View(my_data3_bind)
+names(my_data3_bind)
 
 count_mydata3_bind <-my_data3_bind %>% 
   count(word, sentiment, sort = TRUE) 
 View(count_mydata3_bind)
 
-total_sentiment <- count_mydata3_bind %>% 
-  group_by(document, sentiment) %>% 
-  summarise(totals = sum(n)) %>% 
-  filter(sentiment !="NA") %>% 
-  arrange(document)
+total_sentiment <- my_data3_bind %>% 
+  filter(score !="NA") %>% 
+  summarise(totals = mean(score)) %>%
+  group_by()
+
+%>% 
+  
+%>% 
+
+    arrange(document)
+
 View(total_sentiment)
 
 #group by project and then create graph
