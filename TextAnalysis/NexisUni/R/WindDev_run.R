@@ -11,44 +11,32 @@ library(leaflet)
 library(dplyr)
 
 
-Windbelt_Df <- read_csv("G:/Data/wind project dataset/ventyx_withLR.csv")
+Windbelt_Df <- read_csv("G:/Data/wind project dataset/LR_EndD.csv")
+names(Windbelt_Df)
+colnames(Windbelt_Df)[colnames(Windbelt_Df)=="lr_tif"] <- "low/high_impact"
 
-Windbelt_Df$lowimpact <- Windbelt_Df$lr_tif_1
 
 Windbelt_Df <- Windbelt_Df %>% 
-  select(-lr_tif) %>% 
-  mutate(lowimpact = recode(lowimpact, "0" = 'highimpactarea',
+  mutate(`low/high_impact` = recode(`low/high_impact`, "0" = 'highimpactarea',
                             '1' = 'lowimpactarea',
                             '2' = "lowimpactarea-developed",
                             'NA' = 'NA'))
 
 
-unique(Windbelt_Df$lowimpact)
-Windbelt_df_3years <- Windbelt_Df %>% 
-  filter()
+unique(Windbelt_Df$`low/high_impact`)
 
-pal <- colorNumeric(c("red", "green", "blue"), 1:10)
-pal
+Windbelt_Df$`low/high_impact` <- as.factor(Windbelt_Df$`low/high_impact`)
+levels(Windbelt_Df$`low/high_impact`)
 
-pal <- colorFactor(palette = )
-pal <- colorFactor(c("red", "green", "blue"), 1:10)
-pal
-
-Windbelt_Df$lowimpact <- as.factor(Windbelt_Df$lowimpact)
-levels(Windbelt_Df$lowimpact)
-
-factpal <- colorFactor(topo.colors(3), Windbelt_Df$lowimpact)
+factpal <- colorFactor(topo.colors(3), Windbelt_Df$`low/high_impact`)
 
 m <- leaflet(Windbelt_Df) %>% 
   addTiles() %>% 
   addCircles(lat =~Latitude,
              lng = ~Longitude, 
-             color = ~factpal(lowimpact),
+             color = ~factpal(`low/high_impact`),
              popup = ~ProjectNam, weight = 3, radius = 30) %>% 
-  addLegend("bottomright", pal=factpal, values = ~lowimpact, 
-            title = "windfarms in low vs. high impact areas")
+  addLegend("bottomright", pal=factpal, values = ~`low/high_impact`, 
+            title = "Existing/proposed/cancelled windfarms in low vs. high impact areas")
+m
 
-addLegend("bottomright", pal = pal, values = ~gdp_md_est,
-          title = "Est. GDP (2010)",
-          labFormat = labelFormat(prefix = "$"),
-          opacity = 1)
