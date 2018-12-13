@@ -170,7 +170,7 @@ get_sentiments("nrc") # associatd word with another sentiment feeling word
 
 # View(get_sentiments("nrc"))
 
-# we want scores not categorized words, so we will start by using afinn
+# we want scores not categorized words, so we will use afinn for now.
 
 ```
 --> Sticking to numeric sentiment scores
@@ -179,7 +179,7 @@ Bind Sentiments
 ```{r bind_sentiment}
 
 projects_score_bind <-projects_pdfwords_count %>% 
-  left_join(get_sentiments("afinn"), by = "word")  
+  left_join(get_sentiments("afinn"), by = "word")
 
 # my_data4_bind <-my_data4 %>% 
 #   left_join(get_sentiments("afinn"))  
@@ -196,8 +196,12 @@ View(projects_score_bind)
 total_sentiment1 <- projects_score_bind %>% 
   filter(score !="NA") %>% 
   group_by(document) %>% 
-  summarise(totals = weighted.mean(score, w = count))
+  summarise(totals = weighted.mean(score, w = count),
+            standard_dev = sd(score), 
+            variance = var(score)
+            )
 
+      # note: must filter, otherwise weighted mean score will
 total_sentiment <- projects_score_bind %>% 
   filter(score !="NA") %>% 
   group_by(document) %>% 

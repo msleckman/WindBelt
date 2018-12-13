@@ -45,16 +45,18 @@ library(broom)
 library(data.table)
 library(tidyverse)
 library(purrr)
-
+install.packages("googledrive")
 library(googledrive)
 
 
 #-----
 ## Gdrive directory
 drive_auth()
+
 # googledrive::drive_auth()
 team_drive <- team_drive_get("Bren GP 2019 WindBelt/WindBelt GP")
 GPteam_drive_id <- team_drive$id
+team_drive$id
 NexisUni <- drive_ls(GPteam_drive_id, path = "~/")
 drive_folder <- ""
 googledrive::drive_get(path = )
