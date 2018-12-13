@@ -53,17 +53,55 @@ library(googledrive)
 ## Gdrive directory
 drive_auth()
 
-# googledrive::drive_auth()
-team_drive <- team_drive_get("Bren GP 2019 WindBelt/WindBelt GP")
-GPteam_drive_id <- team_drive$id
-team_drive$id
-NexisUni <- drive_ls(GPteam_drive_id, path = "~/")
-drive_folder <- ""
-googledrive::drive_get(path = )
+# # googledrive::drive_auth()
+# team_drive <- team_drive_get("Bren GP 2019 WindBelt/WindBelt GP")
+# GPteam_drive_id <- team_drive$id
+# team_drive$id
+# NexisUni <- drive_ls(GPteam_drive_id, path = "~/")
+# drive_folder <- ""
+# googledrive::drive_get(path = )
+
+
+
+drive_auth()
+
+# the google drive folder id is simply the id in the folder url after the last dash
+# so the id here is derived from https://drive.google.com/drive/folders/1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32
+
+# Create folder in desktop for pdfs. Decided to set on desktop to be compatible with all computers.
+
+All_LexisUni_PDFs <- "H:/Desktop/All_LexisUni_PDFs"
+dir.create(All_LexisUni_PDFs, showWarnings = FALSE)
+
+## Access to top level NexisUni folder in gdrive
+# GPteam_drive_id <- "1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32"
+# #create a dribble of Nexis Uni articles 
+# NexisUni_folder_gdrive <- googledrive::drive_ls(googledrive::as_id(GPteam_drive_id))
+
+## Access to  WindBelt GP/NexisUni/All_LexisUni_PDF folder in gdrive
+All_LexisUni_PDFs_id  <- "1Jl5lnAMP8XccxzKEm2A4LwFgg_sNhPxN?ogsrc=32"
+All_LexisUni_PDFs_folder <- googledrive::drive_ls(googledrive::as_id(All_LexisUni_PDFs_id))
+View(All_LexisUni_PDFs_folder)
+
+# function to download all lexisUni pdfs
+
+pdf_downloader <- function(templates_dribble, local_folder){
+  # download all pdfs
+  
+  for (i in 1:nrow(templates_dribble)){
+    drive_download(as_id(templates_dribble$id[[i]]), 
+                   file.path(local_folder, templates_dribble$name[[i]]),
+                   overwrite = FALSE) #check if overwrite is neede here
+  }
+}
+
+pdf_downloader(All_LexisUni_PDFs_folder, All_LexisUni_PDFs)
+
 
 #------
 ##file set up
 
+directory <- "H:/Desktop/All_LexisUni_PDFs"
 directory <- "G:/TextAnalysis/NexisUni/Margaux_PDFs"
 
 #change path if not on windbelt comp.
