@@ -65,7 +65,8 @@ drive_auth()
 # Create folder in desktop for pdfs. Decided to set on desktop to be compatible with all computers.
 
 All_LexisUni_PDFs <- "H:/Desktop/All_LexisUni_PDFs"
-dir.create(All_LexisUni_PDFs, showWarnings = FALSE)
+dir.create(All_LexisUni_PDFs, showWarnings = FALSE) 
+  # if already created, won't edit it. 
 
 ## Access to top level NexisUni folder in gdrive
 # GPteam_drive_id <- "1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32"
@@ -79,40 +80,40 @@ View(All_LexisUni_PDFs_folder)
 
 # function to download all lexisUni pdfs
 
+
 pdf_downloader <- function(templates_dribble, local_folder){
   # download all pdfs
 
       for (i in 1:nrow(templates_dribble)){
     drive_download(as_id(templates_dribble$id[[i]]), 
                    file.path(local_folder, templates_dribble$name[[i]]),
-                   overwrite = FALSE) #check if overwrite is neede here
+                   overwrite = TRUE) #check if overwrite is neede here
   }
 }
 
-pdf_downloader(All_LexisUni_PDFs_folder, All_LexisUni_PDFs)
-
+pdf_downloader(sample_n(All_LexisUni_PDFs_folder,20), All_LexisUni_PDFs)
 
 ```
 
 ```{r directory_setup}
 
-directory <- "H:/Desktop/All_LexisUni_PDFs"
-                                  
+directory1 <- "H:/Desktop/All_LexisUni_PDFs"
+directory                                  
 # directory <- "G:/TextAnalysis/NexisUni/Margaux_PDFs"
 
 # directory <- "G:/TextAnalysis/NexisUni/"
 "D:/ "
 
 #change path if not on windbelt comp.
-pdfs <- paste(directory, "/", list.files(directory, pattern = "*.pdf", ignore.case = T), sep = "")
+pdfs <- paste(directory1, "/", list.files(directory1, pattern = "*.pdf", ignore.case = T), sep = "")
 
-pdfs_names <- list.files(directory, pattern = "*.pdf", ignore.case = T)
-# pdfs_names
+pdfs_names <- list.files(directory1, pattern = "*.pdf", ignore.case = T)
+pdfs_names
 
-pdfs_text <- purrr::map(head(pdfs), pdftools::pdf_text)
 
-head(pdfs_text,1)
+pdfs_text <- purrr::map(pdfs[1,30], pdftools::pdf_text)
 
+head(pdfs_text)
 
 ```
 
