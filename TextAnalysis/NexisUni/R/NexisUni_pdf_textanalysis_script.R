@@ -162,23 +162,14 @@ projects_pdftext <- tibble::data_frame(document = pdfs_names, text = pdfs_text_2
 head(projects_pdftext)
 # View(projects_pdftext) # large. slow to open
 
-projects_pdftext_extract <- projects_pdftext %>% 
-  tidyr::unnest()  
-  # filter(!text %in% c("lexis",
-  #                     "nexis", "Uni",
-  #                     "about lexisnexis",
-  #                     "Privacy Policy",
-  #                     "Terms & Conditions", "Copyright © 2018 LexisNexis",
-  #                     " | ",  "@", "lexisnexis"))
- 
 
 ## Creating new column with title of articles
 
 # require(gsubfn)
-projects_pdftext_extract <- projects_pdftext_extract %>% 
+projects_pdftext_extract <- projects_pdftext %>% 
   mutate(title_extract = strapply(text, "\r\n 1.(.*?)Client/Matter:"))
 
-# mutate(title_extract = str_extract(text, "(?<=1.)(.*)(?=Client)"))
+    ## mutate(title_extract = str_extract(text, "(?<=1.)(.*)(?=Client)"))
 
 
 ## Dataframe 2 spliting text by page ##
