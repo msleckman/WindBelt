@@ -34,6 +34,11 @@
 
 ### Packages 
 # install.packages("pdftools", "devtools")
+
+devtools::install_github("r-lib/rlang", build_vignettes = TRUE)
+
+
+
 library(pdftools)
 library(tm)
 # library(tm.plugin.lexisnexis)
@@ -47,6 +52,9 @@ library(tidyverse)
 library(purrr)
 install.packages("googledrive")
 library(googledrive)
+library(tibble)
+remove.packages("rlang")
+library(stringr)
 
 
 #-----
@@ -61,17 +69,13 @@ drive_auth()
 # drive_folder <- ""
 # googledrive::drive_get(path = )
 
-
-
-drive_auth()
-
 # the google drive folder id is simply the id in the folder url after the last dash
 # so the id here is derived from https://drive.google.com/drive/folders/1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32
 
 # Create folder in desktop for pdfs. Decided to set on desktop to be compatible with all computers.
 
 All_LexisUni_PDFs <- "H:/Desktop/All_LexisUni_PDFs"
-dir.create(All_LexisUni_PDFs, showWarnings = FALSE)
+dir.create(All_LexisUni_PDFs, showWarnings = TRUE)
 
 ## Access to top level NexisUni folder in gdrive
 # GPteam_drive_id <- "1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32"
@@ -91,52 +95,106 @@ pdf_downloader <- function(templates_dribble, local_folder){
   for (i in 1:nrow(templates_dribble)){
     drive_download(as_id(templates_dribble$id[[i]]), 
                    file.path(local_folder, templates_dribble$name[[i]]),
-                   overwrite = FALSE) #check if overwrite is neede here
+                   overwrite = TRUE) #check if overwrite is neede here
   }
 }
 
 pdf_downloader(All_LexisUni_PDFs_folder, All_LexisUni_PDFs)
 
+#------
+
+## test with MS_sample_pdfs folder
+
+directory_sample <- "G:/TextAnalysis/NexisUni/Margaux_PDFs"
+
+pdfs_sample <- paste(directory_sample, "/", list.files(directory_sample, pattern = "*.pdf", ignore.case = T), sep = "")
+# View(pdfs)
+pdfs_names_sample <- list.files(directory_sample, pattern = "*.pdf", ignore.case = T)
+# View(pdfs_names)
+pdfs_text_sample <- purrr::map(pdfs_sample, pdftools::pdf_text)
+
+# head(pdfs_text,2)
+View(pdfs_text_sample)
+
+projects_pdftext_sample <- tibble::data_frame(document = pdfs_names_sample, text = pdfs_text_sample)
+View(projects_pdftext)
+
+require(dplyr)
+project_pdfpages_sample <- projects_pdftext_sample %>% 
+  unnest(pdfs_text_sample) 
+
+projects_pdfwords_sample <- projects_pdftext_sample %>% 
+  tidyr::unnest() %>% 
+  tidytext::unnest_tokens(output = word, input = text, token = 
+                            "words", to_lower = T
+                          # strip_numeric = TRUE
+  )%>%      
+  filter(!word %in% c("lexis",
+                      "nexis", "Uni",
+                      "about lexisnexis",
+                      "Privacy Policy",
+                      "Terms & Conditions", "Copyright © 2018 LexisNexis",
+                      " | ",  "@", "lexisnexis")) 
+
+# splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
+
 
 #------
-##file set up
+## Full number of pdfs - file set up
 
 directory <- "H:/Desktop/All_LexisUni_PDFs"
-directory <- "G:/TextAnalysis/NexisUni/Margaux_PDFs"
 
 #change path if not on windbelt comp.
 
 pdfs <- paste(directory, "/", list.files(directory, pattern = "*.pdf", ignore.case = T), sep = "")
+# View(pdfs)
 pdfs_names <- list.files(directory, pattern = "*.pdf", ignore.case = T)
-# pdfs_names
-pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
+# View(pdfs_names)
+pdfs_text_2 <- purrr::map(pdfs, pdftools::pdf_text)
 # head(pdfs_text,2)
+View(pdfs_text_2)
 
-
+#----
 ## Dataframe 1 with just pdfs and full text of the pdf ##
+    #each row is a pdf doc name (document) with the full pdf text
 
-#each row is a pdf doc name (document) with the full pdf text
-
-projects_pdftext <- data_frame(document = pdfs_names, text = pdfs_text)
+projects_pdftext <- tibble::data_frame(document = pdfs_names, text = pdfs_text_2)
 head(projects_pdftext)
-View(projects_pdftext)
+# View(projects_pdftext) # large. slow to open
 
-# text column : each row is an element of a list 
+projects_pdftext_extract <- projects_pdftext %>% 
+  tidyr::unnest()  
+  # filter(!text %in% c("lexis",
+  #                     "nexis", "Uni",
+  #                     "about lexisnexis",
+  #                     "Privacy Policy",
+  #                     "Terms & Conditions", "Copyright © 2018 LexisNexis",
+  #                     " | ",  "@", "lexisnexis"))
+ 
+
+## Creating new column with title of articles
+
+# require(gsubfn)
+projects_pdftext_extract <- projects_pdftext_extract %>% 
+  mutate(title_extract = strapply(text, "\r\n 1.(.*?)Client/Matter:"))
+
+# mutate(title_extract = str_extract(text, "(?<=1.)(.*)(?=Client)"))
 
 
 ## Dataframe 2 spliting text by page ##
 
 # dataset with each page in one row
 project_pdfpages <- projects_pdftext %>% 
-unnest() # splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
+  tidyr::unnest() # splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
 
-View(project_pdfpages)
+# View(project_pdfpages) # large
 
 ## Dataframe 3 spliting page text by word (unnest_tokens()) ##
 
 # Dataset with each work in or row associated with its pdf source 
+
 projects_pdfwords <- projects_pdftext %>% 
-unnest() %>% 
+tidyr::unnest() %>% 
 tidytext::unnest_tokens(output = word, input = text, token = 
 "words", to_lower = T
 # strip_numeric = TRUE
