@@ -11,6 +11,7 @@
     # 2. Save pdf in sample_pdfs folder x
     # Each pdf saved as "fulltext"+ # search results if <10" + "abbreved project developer" "# of results pages in         >10", collapsed with "_" x
     # 2. Create a df with everypdf in each row. my_data x
+    # 3. Add a column with all titles from pdf 
     # 3. Create df with unested text unested,such that each row is a pdf page.x
     # 4. Created new df that splits each page by word, sch that every row is a word in the text (unest_tokens where tokens are pdf) x
     # 5. Get word count of specific words through group_by()
@@ -18,27 +19,22 @@
     # 6. get hits and number of hits of different 'negative words' x
 
 # Following meeting 10/22/18:
-    # 1. Unest token by group of words or sentences and conduct sentiment analysis on this.
-    # 2. Clean scripts - ID words in pdf that consistently pop up and need to be filtered out.
+    # 1. Unest token by group of words or sentences and conduct sentiment analysis on this.x
+    # 2. Clean scripts - ID words in pdf that consistently pop up and need to be filtered out.x
     # 3. separate headlines from text to ensure we don't have duplicates
-    # 4. create csv format (NAME, Developer, State, Sentiment, subjectivity ...)
+    # 4. create csv format (NAME, Developer, State, Sentiment, subjectivity ...) x
 
 # Other notes: 
 # *tidytext::tokenize function - every element in list become df. rbind dfs 
 # str_count() how many times does a search term come up 
 # str_match()
 # regex() 
-
+# 
 
 #-----
-
 ### Packages 
+
 # install.packages("pdftools", "devtools")
-
-devtools::install_github("r-lib/rlang", build_vignettes = TRUE)
-
-
-
 library(pdftools)
 library(tm)
 # library(tm.plugin.lexisnexis)
@@ -59,36 +55,27 @@ library(stringr)
 
 #-----
 ## Gdrive directory
+
 drive_auth()
 
-# # googledrive::drive_auth()
-# team_drive <- team_drive_get("Bren GP 2019 WindBelt/WindBelt GP")
-# GPteam_drive_id <- team_drive$id
-# team_drive$id
-# NexisUni <- drive_ls(GPteam_drive_id, path = "~/")
-# drive_folder <- ""
-# googledrive::drive_get(path = )
+    # the google drive folder id is simply the id in the folder url after the last dash
+    # so the id here is derived from https://drive.google.com/drive/folders/1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32
 
-# the google drive folder id is simply the id in the folder url after the last dash
-# so the id here is derived from https://drive.google.com/drive/folders/1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32
+## Example: want to access to top level NexisUni folder in gdrive (WindBelt GP/NexisUni):
+    # GPteam_drive_id <- "1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32"
+    # #create a dribble of Nexis Uni articles
+    # NexisUni_folder_gdrive <- googledrive::drive_ls(googledrive::as_id(GPteam_drive_id))
+
+## Access to  Bren GP 2019 WindBelt/NU_PDFs_R folder in gdrive
+NU_PDFs_R_id  <- "1alXSN-uUouUNM2cTHq5OS3LSxVhSDa_v"
+NU_PDFs_R_folder <- googledrive::drive_ls(googledrive::as_id(NU_PDFs_R_id))
+View(NU_PDFs_R_folder)
 
 # Create folder in desktop for pdfs. Decided to set on desktop to be compatible with all computers.
-
-All_LexisUni_PDFs <- "H:/Desktop/All_LexisUni_PDFs"
-dir.create(All_LexisUni_PDFs, showWarnings = TRUE)
-
-## Access to top level NexisUni folder in gdrive
-# GPteam_drive_id <- "1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32"
-# #create a dribble of Nexis Uni articles 
-# NexisUni_folder_gdrive <- googledrive::drive_ls(googledrive::as_id(GPteam_drive_id))
-
-## Access to  WindBelt GP/NexisUni/All_LexisUni_PDF folder in gdrive
-All_LexisUni_PDFs_id  <- "1Jl5lnAMP8XccxzKEm2A4LwFgg_sNhPxN?ogsrc=32"
-All_LexisUni_PDFs_folder <- googledrive::drive_ls(googledrive::as_id(All_LexisUni_PDFs_id))
-View(All_LexisUni_PDFs_folder)
+NU_PDFS_R <- "H:/Desktop/NU_PDFS_R"
+dir.create(NU_PDFS_R, showWarnings = TRUE)
 
 # function to download all lexisUni pdfs
-
 pdf_downloader <- function(templates_dribble, local_folder){
   # download all pdfs
   
@@ -99,7 +86,7 @@ pdf_downloader <- function(templates_dribble, local_folder){
   }
 }
 
-pdf_downloader(All_LexisUni_PDFs_folder, All_LexisUni_PDFs)
+pdf_downloader(NU_PDFs_R_folder, NU_PDFS_R)
 
 #------
 
@@ -142,41 +129,47 @@ projects_pdfwords_sample <- projects_pdftext_sample %>%
 #------
 ## Full number of pdfs - file set up
 
-directory <- "H:/Desktop/All_LexisUni_PDFs"
+directory <- "H:/Desktop/NU_PDFS_R"
 
 #change path if not on windbelt comp.
-
 pdfs <- paste(directory, "/", list.files(directory, pattern = "*.pdf", ignore.case = T), sep = "")
-# View(pdfs)
+View(pdfs)
 pdfs_names <- list.files(directory, pattern = "*.pdf", ignore.case = T)
 # View(pdfs_names)
-pdfs_text_2 <- purrr::map(pdfs, pdftools::pdf_text)
+pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
 # head(pdfs_text,2)
-View(pdfs_text_2)
+View(pdfs_text)
 
 #----
+
 ## Dataframe 1 with just pdfs and full text of the pdf ##
     #each row is a pdf doc name (document) with the full pdf text
 
-projects_pdftext <- tibble::data_frame(document = pdfs_names, text = pdfs_text_2)
+projects_pdftext <- tibble::data_frame(document = pdfs_names, text = pdfs_text)
 head(projects_pdftext)
-# View(projects_pdftext) # large. slow to open
-
+View(projects_pdftext) # large. slow to open
 
 ## Creating new column with title of articles
 
-# require(gsubfn)
-projects_pdftext_extract <- projects_pdftext %>% 
-  mutate(title_extract = strapply(text, "\r\n 1.(.*?)Client/Matter:"))
+# function: 
 
-    ## mutate(title_extract = str_extract(text, "(?<=1.)(.*)(?=Client)"))
+  # titles_extract <- function(text, )
+  # strapply(text, "\r\n 1.(.*?)Client/Matter:")  
+
+# Extracts most titles - to clean
+projects_pdftext_extract <- projects_pdftext %>% 
+mutate(title_extract = strapply(text, "\r\n \\d.(.*?)Client/Matter:"))
 
 
 ## Dataframe 2 spliting text by page ##
 
 # dataset with each page in one row
 project_pdfpages <- projects_pdftext %>% 
-  tidyr::unnest() # splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
+  tidyr::unnest() %>% 
+  mutate(title_extract = strapply(text, "\r\n \\d.(.*?)Client/Matter:")) # this function also extracts most titles. helps verify whether extracted article titles are feasible. 
+
+
+# splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
 
 # View(project_pdfpages) # large
 
@@ -187,9 +180,7 @@ project_pdfpages <- projects_pdftext %>%
 projects_pdfwords <- projects_pdftext %>% 
 tidyr::unnest() %>% 
 tidytext::unnest_tokens(output = word, input = text, token = 
-"words", to_lower = T
-# strip_numeric = TRUE
-)%>%      
+"words", to_lower = T, strip_numeric = FALSE)%>%      
 filter(!word %in% c("lexis",
 "nexis", "Uni",
 "about lexisnexis",
@@ -255,7 +246,9 @@ View(projects_score_bind)
 total_sentiment1 <- projects_score_bind %>% 
   filter(score !="NA") %>% 
   group_by(document) %>% 
-  summarise(totals = weighted.mean(score, w = count))
+  summarise(totals = weighted.mean(score, w = count),
+            standard_dev = sd(score),
+            variance = var(score))
 
 total_sentiment <- projects_score_bind %>% 
   filter(score !="NA") %>% 
