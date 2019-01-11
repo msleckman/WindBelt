@@ -1,0 +1,484 @@
+---
+title: "18_12_18_Rmarkdown"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+title: "NexisUni_pdf_scraping"
+author: "Delaney Roney"
+date: "December 18, 2018"
+output: Word Document
+---
+
+```{r setup2, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Outline of lexisUni text analysis (checked if done):
+ 1. Dowload pdf from lexisUni - search terms: "Master Project Name" AND "Project Developer" AND "wind" AND "energy' (if necessary, the state was added in the search term if location was not precise enough. 
+ 2. Save pdf in sample_pdfs folder x
+      Each pdf saved as "fulltext"+ # search results if <10" + "abbreved project developer" "# of results pages in         >10", collapsed with "_" x
+2. Create a df with everypdf in each row. my_data x
+3. Create df with unested text unested,such that each row is a pdf page.x
+4. Created new df that splits each page by word, sch that every row is a word in the text (unest_tokens where tokens are pdf) x
+5. Get word count of specific words through group_by()
+Conduct sentiment analysis on unique words x 
+6. get hits and number of hits of different 'negative words' x
+# Following meeting 10/22/18:
+1. Unest token by group of words or sentences and conduct sentiment analysis on this.
+2. Clean scripts - ID words in pdf that consistently pop up and need to be filtered out.
+3. separate headlines from text to ensure we don't have duplicates
+4. create csv format (NAME, Developer, State, Sentiment, subjectivity ...)
+Other notes: 
+*tidytext::tokenize function - every element in list become df. rbind dfs 
+ str_count() how many times does a search term come up 
+ str_match()
+ regex() 
+```{r packages_read_in}
+### Packages 
+# install.packages("pdftools", "devtools")
+library(pdftools)
+library(tm)
+# library(tm.plugin.lexisnexis)
+library(devtools)
+# install.packages("tidytext")
+library(tidytext)
+library(broom)
+# install.packages("tidyverse")
+library(data.table)
+library(tidyverse)
+library(purrr)
+library(googledrive)
+library(knitr)
+```
+
+
+```{r connect_to_googledrive}
+#drive_auth()
+# the google drive folder id is simply the id in the folder url after the last dash
+# so the id here is derived from https://drive.google.com/drive/folders/1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32
+# Create folder in desktop for pdfs. Decided to set on desktop to be compatible with all computers.
+#All_LexisUni_PDFs <- "H:/Desktop/All_LexisUni_PDFs"
+#dir.create(All_LexisUni_PDFs, showWarnings = FALSE) 
+  # if already created, won't edit it. 
+## Access to top level NexisUni folder in gdrive
+# GPteam_drive_id <- "1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32"
+# #create a dribble of Nexis Uni articles 
+# NexisUni_folder_gdrive <- googledrive::drive_ls(googledrive::as_id(GPteam_drive_id))
+## Access to  WindBelt GP/NexisUni/All_LexisUni_PDF folder in gdrive
+#All_LexisUni_PDFs_id  <- "1Jl5lnAMP8XccxzKEm2A4LwFgg_sNhPxN?ogsrc=32"
+#All_LexisUni_PDFs_folder <- googledrive::drive_ls(googledrive::as_id(All_LexisUni_PDFs_id))
+#View(All_LexisUni_PDFs_folder)
+# function to download all lexisUni pdfs
+#pdf_downloader <- function(templates_dribble, local_folder){
+  # download all pdfs
+ #     for (i in 1:nrow(templates_dribble)){
+  #  drive_download(as_id(templates_dribble$id[[i]]), 
+   #                file.path(local_folder, templates_dribble$name[[i]]),
+#    #               overwrite = TRUE) #check if overwrite is neede here
+#  }
+#}
+#pdf_downloader(sample_n(All_LexisUni_PDFs_folder,20), All_LexisUni_PDFs)
+
+
+#Delaney Code for Bringing in csv and pdfs from google drive
+
+#WindBelt_Data <- drive_download(as_id("https://docs.google.com/spreadsheets/d/1obj9RRgbt9XGudtZW-v_7QNiOuWrN3gdSb9RKmRBgco/edit#gid=146899731"), path = "ventyx_converted_11_27_2018_PopDensity_Income_Viewshed_lowhighimpact_doc_names", type = "csv", overwrite = TRUE)
+
+#WindBelt_Full <- read.csv("~/Downloads/ventyx_converted_11_27_2018_PopDensity_Income_Viewshed_lowhighimpact_doc_names.csv")
+#View(WindBelt_Full)
+
+#############
+
+#Download pdfs from team drive then loadin as file name Windbelt_pdfs
+
+#Lexis Uni
+#Desktop Comp
+#ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian <- read.csv("D:/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
+
+#View(ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian)
+
+
+#mac Comp
+
+ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian <- read.csv("~/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
+
+View(ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian)
+
+WindBelt_Full <- ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian
+
+Windbelt_Project_Database_H_L_W <- mutate(WindBelt_Full, H_L_W = ifelse(lr_tif>0, "Low", "High"))
+
+wind_df <- Windbelt_Project_Database_H_L_W
+
+#google news
+google_news <- google_News_scrape <- read.csv("~/Desktop/google_scraping_01-08-19.csv")
+View(google_news)
+
+
+
+
+
+```
+
+
+```{r directory_setup}
+
+
+#LU
+directory1 <- "D:/Desktop/All_LexisUni_PDFs"
+directory1
+# directory <- G:/TextAnalysis/NexisUni/Margaux_PDFs
+# directory <- G:/TextAnalysis/NexisUni/
+#change path if not on windbelt comp.
+
+#Google News
+
+#Desktop Computer
+#directory1 <- "D:/Desktop/All_LexisUni_PDFs"
+#directory1
+
+#Mac Computer
+directory1 <- "~/Desktop/All_LexisUni_PDFs"
+directory1
+
+pdfs <- paste(directory1, "/", list.files(directory1, pattern = "*.pdf", ignore.case = T), sep = "")
+
+pdfs_names <- list.files(directory1, pattern = "*.pdf", ignore.case = T)
+#pdfs_names
+
+pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
+#head(pdfs_text)
+```
+
+#### Dataframe 1 with just pdfs and full text of the pdf
+```{r dataframe1}
+#LU
+
+#each row is a pdf doc name (document) with the full pdf text
+#projects_pdftext <- data_frame(document = pdfs_names, text = pdfs_text)
+#head(projects_pdftext)
+#View(projects_pdftext)
+# text column : each row is an element of a list 
+
+
+#Googlenews
+
+projects_pdftext <- data_frame(document = google_news$ProjectName, text = google_news$FullText)
+
+#document = project name
+
+
+```
+#### Dataframe 2 spliting text by page
+```{r dataframe2}
+# dataset with each page in one row
+project_pdfpages <- projects_pdftext %>% 
+  unnest() # splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
+View(project_pdfpages)
+```
+#### Dataframe 3 spliting page text by word (unnest_tokens())
+```{r dataframe3}
+#Dataset with each work in or row associated with its pdf source 
+projects_pdfwords <- projects_pdftext %>% 
+  unnest() %>% 
+  tidytext::unnest_tokens(output = word, input = text, token = 
+                          "words", to_lower = T
+                # strip_numeric = TRUE
+                )%>%      
+  filter(!word %in% c("lexis",
+                      "nexis", "Uni",
+                      "about lexisnexis",
+                      "Privacy Policy",
+                      "Terms & Conditions", "Copyright © 2018 LexisNexis",
+                      " | ",  "@", "lexisnexis")) 
+# %>% gsub("[^A-Za-z0-9,;._-]","")
+#View(projects_pdfwords)
+
+#If google news only run chunk after this
+
+projects_pdfwords <- projects_pdftext %>% 
+  unnest() %>% 
+  tidytext::unnest_tokens(output = word, input = text, token = 
+                          "words", to_lower = T)
+
+
+projects_pdfnest <- projects_pdftext %>% 
+  unnest() %>% 
+  tidytext::unnest_tokens(output = ngrams, input = text, token = "ngrams", n = 5, to_lower = T)
+
+# View(my_data4)
+
+# note: unnest_tokens() splits text by respective element (ie word, phrase, ...) word is default
+
+```
+
+
+
+#### Dataframe words grouped by pdf and summarised by frequency of word or ngrams
+```{r group_by}
+projects_pdfwords_count <- projects_pdfwords %>%
+  group_by(document, word) %>% 
+  summarise(count = n())
+# View(projects_pdfwords_count)
+# counts the number of time a specific words is found in the page pdf.
+# View(my_data2_sum)
+projects_pdfnest_count <- projects_pdfnest %>%
+  group_by(document, ngrams) %>% 
+  summarise(count = n())
+# View(projects_pdfnest_count)
+# add new count column with most freq. words
+```
+
+#### Sentiment dictionaries:
+
+Compare sentiment dictionaries
+```{r sentimentdictionaries}
+# using 'afinn' vs. 'nrc sentiment tests.
+get_sentiments("afinn") # associates word with a sentiment score
+#afinn scores/ranks from -5 to +5 for positive or negative sentiment. 
+get_sentiments("nrc") # associatd word with another sentiment feeling word
+# View(get_sentiments("afinn"))
+# View(get_sentiments("nrc"))
+# we want scores not categorized words, so we will use afinn for now.
+```
+--> Sticking to numeric sentiment scores
+
+Bind Sentiments
+```{r bind_sentiment}
+projects_score_bind <-projects_pdfwords_count %>% 
+  left_join(get_sentiments("afinn"), by = "word")
+# my_data4_bind <-my_data4 %>% 
+#   left_join(get_sentiments("afinn"))  
+View(projects_score_bind)
+# Note: Many of the scores per words are NA simply because that word does not exist. 
+```
+
+
+```{r projectscores}
+total_sentiment1 <- projects_score_bind %>% 
+  filter(score !="NA") %>% 
+  group_by(document) %>% 
+  summarise(totals = weighted.mean(score, w = count),
+            standard_dev = sd(score), 
+            variance = var(score)
+            )
+      # note: must filter, otherwise weighted mean score will
+total_sentiment <- projects_score_bind %>% 
+  filter(score !="NA") %>% 
+  group_by(document) %>% 
+  summarise(totals = mean(score))
+  
+View(total_sentiment1)
+View(total_sentiment)
+# count_mydata3_bind <-my_data3_bind %>% 
+#   count(word, score, sort = TRUE) 
+# View(count_mydata3_bind)
+
+
+
+
+write.csv(total_sentiment, file = "Windbelt_sen.csv")
+
+Windbelt_sen <- read.csv("D:/Desktop/Windbelt_sen.csv")
+
+
+```
+
+```{r projectscores_simple}
+
+#total_sentiment <- split_page_text_by_word_sum_bind %>% 
+ # filter(score !="NA") %>% 
+  #summarise(totals = mean(score)) %>%
+  #group_by()
+
+#View(total_sentiment)
+
+# count_mydata3_bind <-my_data3_bind %>% 
+#   count(word, score, sort = TRUE) 
+# View(count_mydata3_bind)
+
+#pull into excel to create + or - column
+
+#write.csv(windbelt_sen, file = "Windbelt_sen.csv")
+
+#Windbelt_P_or_N <- read.csv("D:/Windbelt_sen.csv")
+
+
+          
+
+
+```
+
+```{r combinewithsen}
+
+windbelt_Full_w_sen <- merge(wind_df, total_sentiment, by="document")
+
+windbelt_Full_w_sen <- rename(windbelt_Full_w_sen, sentiment=totals)
+
+
+
+```
+
+
+```{r pos_or_neg_sen}
+
+Windbelt_P_or_N <- mutate(windbelt_Full_w_sen, p_n = ifelse(sentiment>0, "pos", "neg"))
+
+View(Windbelt_P_or_N)
+
+```
+
+
+
+```{r organize_for_regressions}
+
+#for pure sen scores
+
+#na.omit(windbelt_Full_w_sen$Household_MeanIncome)
+#na.omit(windbelt_Full_w_sen$PopDensity_mi)
+#na.omit(windbelt_Full_w_sen$lr_tif)
+#na.omit(windbelt_Full_w_sen$View_Score)
+
+windbelt_Full_w_sen$H_L_W <- as.factor(windbelt_Full_w_sen$H_L_W)
+
+
+windbelt_Full_w_sen$PopDensity_mi <- as.numeric(windbelt_Full_w_sen$PopDensity_mi)
+
+windbelt_Full_w_sen$Household_MeanIncome <- as.numeric(windbelt_Full_w_sen$Household_MedianIncome)
+windbelt_Full_w_sen$View_Score <- as.numeric(windbelt_Full_w_sen$View_Score)
+
+
+windbelt_Full_w_sen$L_H_W <- relevel(windbelt_Full_w_sen$H_L_W, ref = "High")
+
+str(windbelt_Full_w_sen)
+
+summary(windbelt_Full_w_sen)
+
+
+#for Neg or Pos sen scores
+
+Windbelt_P_or_N$p_n <- as.factor(Windbelt_P_or_N$p_n)
+
+Windbelt_P_or_N$H_L_W <- as.factor(Windbelt_P_or_N$H_L_W)
+
+
+Windbelt_P_or_N$PopDensity_mi <- as.numeric(Windbelt_P_or_N$PopDensity_mi)
+
+Windbelt_P_or_N$lr_tif <- as.factor(Windbelt_P_or_N$lr_tif)
+
+Windbelt_P_or_N$Household_MeanIncome <- as.numeric(Windbelt_P_or_N$Household_MedianIncome)
+Windbelt_P_or_N$View_Score <- as.numeric(Windbelt_P_or_N$View_Score)
+
+
+Windbelt_P_or_N$L_H_W <- relevel(Windbelt_P_or_N$H_L_W, ref = "Low")
+
+str(Windbelt_P_or_N)
+
+summary(Windbelt_P_or_N)
+
+
+```
+
+```{r regression}
+
+#With Pure Sen Scores
+
+reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*sentiment, data=windbelt_Full_w_sen)
+summary(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_Inter <- lm(TimelineDays ~ View_Score + sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + H_L_W*sentiment, data=windbelt_Full_w_sen)
+summary(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_Inter)
+
+#reg_TL__HL_VS_SEN <- lm(TimelineDays ~ H_L_W + View_Score + sentiment + Capacity, data=windbelt_Full_w_sen)
+#summary(reg_TL__HL_VS_SEN)
+
+reg_TL_SEN <- lm(TimelineDays ~ sentiment, data=windbelt_Full_w_sen)
+summary(reg_TL_SEN)
+
+reg_TL_HL <- lm(TimelineDays ~ H_L_W, data=windbelt_Full_w_sen)
+summary(reg_TL_HL)
+
+reg_TL_VS <- lm(TimelineDays ~ View_Score, data=windbelt_Full_w_sen)
+summary(reg_TL_VS)
+
+reg_TL_POPDEN <- lm(TimelineDays ~ PopDensity_mi, data=windbelt_Full_w_sen)
+summary(reg_TL_POPDEN)
+
+reg_TL_MedianIncome <- lm(TimelineDays ~ Household_MedianIncome, data=windbelt_Full_w_sen)
+summary(reg_TL_MedianIncome)
+
+reg_SEN_VS <- lm(sentiment ~ View_Score, data=windbelt_Full_w_sen)
+summary(reg_SEN_VS)
+
+reg_SEN_HL <- lm(sentiment ~ H_L_W, data=windbelt_Full_w_sen)
+summary(reg_SEN_HL)
+
+#reg_TL__State_HL_VS_Sen_POPDEN <- lm(TimelineDays ~ State + H_L_W + View_Score + sentiment + PopDensity_mi, data=windbelt_Full_w_sen)
+#summary(reg_TL__State_HL_VS_Sen_POPDEN)
+
+#With positive/0 or negative sen
+reg_PN_TL_HL_VS_POPDEN_Cap_MedianInc_State_INter <- lm(TimelineDays ~ H_L_W + View_Score + p_n + PopDensity_mi + Household_MedianIncome + Capacity + State + H_L_W*p_n, data=Windbelt_P_or_N)
+summary(reg_PN_TL_HL_VS_POPDEN_Cap_MedianInc_State_INter)
+
+reg_PN_TL__HL_VS_SEN <- lm(TimelineDays ~ H_L_W + View_Score + Pos_or_Neg, data=Windbelt_P_or_N)
+summary(reg_PN_TL_HL_VS_SEN)
+
+reg_PN_TL__SEN <- lm(TimelineDays ~ Pos_or_Neg, data=Windbelt_P_or_N)
+summary(reg_PN_TL_SEN)
+
+reg_PN_TL__HL <- lm(TimelineDays ~ H_L_W, data=Windbelt_P_or_N)
+summary(reg_PN_TL_HL)
+
+reg_PN_TL__VS <- lm(TimelineDays ~ View_Score, data=Windbelt_P_or_N)
+summary(reg_PN_TL_VS)
+
+reg_PN_TL__POPDEN <- lm(TimelineDays ~ PopDensity_mi, data=Windbelt_P_or_N)
+summary(reg_PN_TL_POPDEN)
+
+reg_PN_SEN__VS <- lm(sentiment ~ View_Score, data=Windbelt_P_or_N)
+summary(reg_PN_SEN_VS)
+
+reg_PN_SEN__HL <- lm(sentiment ~ H_L_W, data=Windbelt_P_or_N)
+summary(reg_PN_SEN_HL)
+
+reg_PN_TL__State_HL_VS_Sen_POPDEN <- lm(TimelineDays ~ State + H_L_W + View_Score + Pos_or_Neg + PopDensity_mi, data=Windbelt_P_or_N)
+summary(reg_PN_TL_State_HL_VS_Sen_POPDEN)
+
+
+```
+```{r ttest_H_L}
+
+
+
+```
+
+
+#### Populate with negative words 
+```{r negative_words}
+library(stringr)
+negative_words <- paste0(c('negative|postpone|against|delay|lawsuit|litigation|protest|^cost|^stop'))
+# Function to replace `character(0)` with NAs as NULL values are dropped when flattening list
+# inspired by: https://colinfay.me/purrr-set-na/
+charnull_set <- function(x){
+  p <- purrr::as_mapper(~identical(., character(0)))
+  x[p(x)] <- NA
+  return(x)
+}
+projects_pdftext_3 <- projects_pdftext %>%
+  mutate(query_hits = str_extract_all(text, pattern = regex(negative_words, ignore_case=TRUE)) %>%  # Extract all the keywords
+           map(~charnull_set(.x)) %>%   # Replace character(0) with NAs
+           map_chr(~glue::glue_collapse(.x, sep = ";")) %>%   # collapse the multiple hits
+           tolower) # all our keywords are lower case
+projects_pdftext_grouped <- projects_pdftext_2 %>%
+  group_by(document, query_hits)
+# OR 
+my_data1grouped <- my_data1 %>%
+  group_by(document, query_hits)%>%
+  summarise(word_list = glue::glue_collapse(query_hits, sep = ";"))
+View(projects_pdftext_2)
+```
