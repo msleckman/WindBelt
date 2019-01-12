@@ -46,11 +46,12 @@ library(broom)
 library(data.table)
 library(tidyverse)
 library(purrr)
-install.packages("googledrive")
+# install.packages("googledrive")
 library(googledrive)
 library(tibble)
-remove.packages("rlang")
+# remove.packages("rlang")
 library(stringr)
+library(gsubfn)
 
 
 #-----
@@ -67,6 +68,7 @@ drive_auth()
     # NexisUni_folder_gdrive <- googledrive::drive_ls(googledrive::as_id(GPteam_drive_id))
 
 ## Access to  Bren GP 2019 WindBelt/NU_PDFs_R folder in gdrive
+
 NU_PDFs_R_id  <- "1alXSN-uUouUNM2cTHq5OS3LSxVhSDa_v"
 NU_PDFs_R_folder <- googledrive::drive_ls(googledrive::as_id(NU_PDFs_R_id))
 View(NU_PDFs_R_folder)
@@ -90,82 +92,54 @@ pdf_downloader(NU_PDFs_R_folder, NU_PDFS_R)
 
 #------
 
-## test with MS_sample_pdfs folder
-
-directory_sample <- "G:/TextAnalysis/NexisUni/Margaux_PDFs"
-
-pdfs_sample <- paste(directory_sample, "/", list.files(directory_sample, pattern = "*.pdf", ignore.case = T), sep = "")
-# View(pdfs)
-pdfs_names_sample <- list.files(directory_sample, pattern = "*.pdf", ignore.case = T)
-# View(pdfs_names)
-pdfs_text_sample <- purrr::map(pdfs_sample, pdftools::pdf_text)
-
-# head(pdfs_text,2)
-View(pdfs_text_sample)
-
-projects_pdftext_sample <- tibble::data_frame(document = pdfs_names_sample, text = pdfs_text_sample)
-View(projects_pdftext)
-
-require(dplyr)
-project_pdfpages_sample <- projects_pdftext_sample %>% 
-  unnest(pdfs_text_sample) 
-
-projects_pdfwords_sample <- projects_pdftext_sample %>% 
-  tidyr::unnest() %>% 
-  tidytext::unnest_tokens(output = word, input = text, token = 
-                            "words", to_lower = T
-                          # strip_numeric = TRUE
-  )%>%      
-  filter(!word %in% c("lexis",
-                      "nexis", "Uni",
-                      "about lexisnexis",
-                      "Privacy Policy",
-                      "Terms & Conditions", "Copyright © 2018 LexisNexis",
-                      " | ",  "@", "lexisnexis")) 
-
-# splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
-
-
-#------
 ## Full number of pdfs - file set up
 
 directory <- "H:/Desktop/NU_PDFS_R"
 
 #change path if not on windbelt comp.
 pdfs <- paste(directory, "/", list.files(directory, pattern = "*.pdf", ignore.case = T), sep = "")
-View(pdfs)
+# View(pdfs)
 pdfs_names <- list.files(directory, pattern = "*.pdf", ignore.case = T)
 # View(pdfs_names)
 pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
 # head(pdfs_text,2)
-View(pdfs_text)
 
-#----
+#-------------
 
 ## Dataframe 1 with just pdfs and full text of the pdf ##
     #each row is a pdf doc name (document) with the full pdf text
 
 projects_pdftext <- tibble::data_frame(document = pdfs_names, text = pdfs_text)
 head(projects_pdftext)
-View(projects_pdftext) # large. slow to open
+View(head(projects_pdftext)) # large. slow to open
 
 ## Creating new column with title of articles
 
 # function: 
-
   # titles_extract <- function(text, )
   # strapply(text, "\r\n 1.(.*?)Client/Matter:")  
 
 # Extracts most titles - to clean
-projects_pdftext_extract <- projects_pdftext %>% 
+head_projects_pdftext_extract <- head(projects_pdftext) %>% 
+  tidyr::unnest()
+
+head_projects_pdftext_extract[1,2] <- head_projects_pdftext_extract %>% 
+  stringr::str_replace_all(string = text, pattern = "Date", replacement = "_")
+
+%>% 
+  tidyr::nest() %>% 
 mutate(title_extract = strapply(text, "\r\n \\d.(.*?)Client/Matter:"))
 
+test_remove_words <- str_remove_all(project_pdfpages$text[1], string = "lexis")
+
+View(test_remove_words)
 
 ## Dataframe 2 spliting text by page ##
 
 # dataset with each page in one row
 project_pdfpages <- projects_pdftext %>% 
-  tidyr::unnest() %>% 
+  tidyr::unnest() %>%
+  
   mutate(title_extract = strapply(text, "\r\n \\d.(.*?)Client/Matter:")) # this function also extracts most titles. helps verify whether extracted article titles are feasible. 
 
 
@@ -195,7 +169,7 @@ View(projects_pdfwords)
 # playing with ngrams
 projects_pdfnest <- projects_pdftext %>% 
 unnest() %>% 
-tidytext::unnest_tokens(output = ngrams, input = text, token = "ngrams", n = 5, to_lower = T)
+tidytext::unnest_tokens(output = ngrams, input = text, token = "ngrams", n = 5, to_lower = F)
 
 # View(my_data4)
 # note: unnest_tokens() splits text by respective element (ie word, phrase, ...) word is default
@@ -219,8 +193,10 @@ summarise(count = n())
 
 #### Sentiment dictionaries ##
 
-# using 'afinn' vs. 'nrc sentiment tests.
-get_sentiments("afinn") 
+# using 'afinn' vs. 'nrc sentiment tests
+
+View(get_sentiments("afinn")) 
+
   #afinn scores/ranks from -5 to +5 for positive or negative sentiment. 
 
 # get_sentiments("nrc") 
@@ -285,3 +261,44 @@ projects_pdftext_query <- projects_pdftext %>%
            tolower) # all our keywords are lower case
 
 View(projects_pdftext_query)
+
+
+##############
+
+
+## test with MS_sample_pdfs folder
+
+directory_sample <- "G:/TextAnalysis/NexisUni/Margaux_PDFs"
+
+pdfs_sample <- paste(directory_sample, "/", list.files(directory_sample, pattern = "*.pdf", ignore.case = T), sep = "")
+# View(pdfs)
+pdfs_names_sample <- list.files(directory_sample, pattern = "*.pdf", ignore.case = T)
+# View(pdfs_names)
+pdfs_text_sample <- purrr::map(pdfs_sample, pdftools::pdf_text)
+
+# head(pdfs_text,2)
+View(pdfs_text_sample)
+
+projects_pdftext_sample <- tibble::data_frame(document = pdfs_names_sample, text = pdfs_text_sample)
+View(projects_pdftext)
+
+require(dplyr)
+project_pdfpages_sample <- projects_pdftext_sample %>% 
+  unnest(pdfs_text_sample) 
+
+projects_pdfwords_sample <- projects_pdftext_sample %>% 
+  tidyr::unnest() %>% 
+  tidytext::unnest_tokens(output = word, input = text, token = 
+                            "words", to_lower = T
+                          # strip_numeric = TRUE
+  )%>%      
+  filter(!word %in% c("lexis",
+                      "nexis", "Uni",
+                      "about lexisnexis",
+                      "Privacy Policy",
+                      "Terms & Conditions", "Copyright © 2018 LexisNexis",
+                      " | ",  "@", "lexisnexis")) 
+
+# splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
+
+########################
