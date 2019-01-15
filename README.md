@@ -7,6 +7,7 @@ TextAnalysis folder includes all scripts (python and R) used for the text analys
       1. NexisUni/R 
       2. GoogleNews/Py (to be added)
  
+Regression_Windbelt.R is the master script used to run regression results 
 
 
       

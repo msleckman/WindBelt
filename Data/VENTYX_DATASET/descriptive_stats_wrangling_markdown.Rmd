@@ -25,6 +25,7 @@ library(data.table)
 library(tidyverse)
 library(purrr)
 library(lubridate)
+library(knitr)
 
 library(googledrive)
 
@@ -70,14 +71,27 @@ To pull ventyx dataset from google drive directly
 
 Read in ventyx csv 
 ```{r ventyx_dataset}
-Ventyx_dataset <- read_csv(file = "G:/Data/VENTYX_DATASET/ventyx_converted_11_27_2018_PopDensity_Income_Viewshed_lowhighimpact_doc_names.csv") %>% 
-  filter(!is.na(lr_tif))
+
+
+#Change when working from G drive
+home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
+#home_folder <- "G:/Data/VENTYX_DATASET/"
+
+
+# Old Ventyx dataset - to archive
+# Ventyx_dataset <- read_csv(file = "G:/Data/VENTYX_DATASET/ventyx_converted_11_27_2018_PopDensity_Income_Viewshed_lowhighimpact_doc_names.csv") %>% 
+#   filter(!is.na(lr_tif))
+
+Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")) %>% filter(!is.na(lr_tif))
+                            
   
 View(Ventyx_dataset)
 
 dim(Ventyx_dataset)
 
 ```
+
+Total number of projects recorded: 902
 
 ```{r phase_date}
 
@@ -98,9 +112,12 @@ max(Ventyx_dataset$PhaseHistory_date)
 # median(Ventyx_dataset$PhaseHistory_date)
 
 ```
+Earliest date: 2012-01-01
+Latest date: 2018-10-09
+
 
 Stats on farms in low-impact/high-impact areas
-```{r low-high_impact}
+```{r low-high_impact, results = 'asis'}
 
 ### low-high impact:
 
@@ -114,73 +131,109 @@ ventyx_lowimpact <- Ventyx_dataset %>%
   summarise(count=n())
 
 sum(ventyx_lowimpact$count) # verifying all low impact areas are somewhere
-View(ventyx_nonlowimpact)
+
 
 ventyx_nonlowimpact <- Ventyx_dataset %>% 
   filter(lr_tif == 0) %>% 
   group_by(State) %>% 
   summarise(count=n())
 
-Ventyx_dataset_lowhighimpact_totals <- Ventyx_dataset %>%
-  select(ProjectName, ProjectDeveloper, State, lr_tif) %>%
-  group_by(State) %>% 
-  summarise(count= n()) %>% 
-  summarise(low_impact = sum(lr_tif == 1))
-  
-# View(Ventyx_dataset_lowhighimpact_totals)
+View(ventyx_nonlowimpact)
 
+# Ventyx_dataset_lowhighimpact_totals <- Ventyx_dataset %>%
+#   select(ProjectName, ProjectDeveloper, State, lr_tif) %>%
+#   group_by(State) %>% 
+#   summarise(count= n()) %>% 
+#   summarise(low_impact = sum(Ventyx_dataset$lr_tif == 1))
+#   
+#  View(Ventyx_dataset_lowhighimpact_totals)
+ 
+ ##Summary table of low risk v non-low risk areas by state:
+ 
+ Impact_by_state <- Ventyx_dataset %>%
+   select(ProjectName, ProjectDeveloper, State, lr_tif) %>% 
+   group_by(State) %>% 
+   mutate(low_impact = sum(lr_tif == 1)) %>% 
+   mutate(nonlow_impact = sum (lr_tif == 0)) %>% 
+   mutate(total = sum(lr_tif == 1 | lr_tif == 0)) %>% 
+   select(State,low_impact, nonlow_impact, total) %>% 
+   unique()
+ 
+
+View(Impact_by_state)
+
+kable(Impact_by_state)
 
 ```
+
+
 
 Stats on developers
 ```{r developer}
 
 ## developer stats:
-ProjDev_nonlowimpact <- Ventyx_dataset %>% 
-  filter(lr_tif == 0) %>% 
-  group_by(ProjectDeveloper) %>% 
-  summarise(count=n()) %>% 
-  sort(decreasing = T)
-  
-ProjDev_lowimpact <- Ventyx_dataset %>% 
-  filter(lr_tif == 1) %>% 
-  group_by(ProjectDeveloper) %>% 
-  summarise(count=n()) 
-  
-View(ProjDev_lowimpact)
-View(ProjDev_nonlowimpact)
-
-ProjDev_lowhighimpact_totals <- Ventyx_dataset %>%
-  select(ProjectDeveloper, lr_tif) %>%
-  group_by(ProjectDeveloper) %>% 
-  summarise(count= n())
+# ProjDev_nonlowimpact <- Ventyx_dataset %>% 
+#   filter(lr_tif == 0) %>% 
+#   group_by(ProjectDeveloper) %>% 
+#   summarise(count=n()) %>% 
+#   sort(decreasing = T)
+#   
+# ProjDev_lowimpact <- Ventyx_dataset %>% 
+#   filter(lr_tif == 1) %>% 
+#   group_by(ProjectDeveloper) %>% 
+#   summarise(count=n()) 
+#   
+# View(ProjDev_lowimpact)
+# View(ProjDev_nonlowimpact)
+# 
+# ProjDev_lowhighimpact_totals <- Ventyx_dataset %>%
+#   select(ProjectDeveloper, lr_tif) %>%
+#   group_by(ProjectDeveloper) %>% 
+#   summarise(count= n())
 
 # View(ProjDev_lowhighimpact_totals)
+
+##Summary by developer
+
+ Impact_by_developer <- Ventyx_dataset %>%
+   select(ProjectName, ProjectDeveloper, State, lr_tif) %>% 
+   group_by(ProjectDeveloper) %>% 
+   mutate(low_impact = sum(lr_tif == 1)) %>% 
+   mutate(nonlow_impact = sum (lr_tif == 0)) %>% 
+   mutate(total = sum(lr_tif == 1 | lr_tif == 0)) %>% 
+   select(ProjectDeveloper,low_impact, nonlow_impact, total) %>% 
+   unique() %>% 
+  arrange(-total)
+ 
+
+View(Impact_by_developer)
+
+kable(Impact_by_developer)
 
 ```
 
 stats on average timeline 
 ```{r timelines}
 
-## timeline stats
-
-mean(Ventyx_dataset$TimelineDays)
-min(Ventyx_dataset$TimelineDays)
-max(Ventyx_dataset$TimelineDays)
-
-# low impact
-all_ventyx_lowimpact <- Ventyx_dataset %>% 
-  filter(lr_tif == 1)
-mean(all_ventyx_lowimpact$TimelineDays)
-max(all_ventyx_lowimpact$TimelineDays)
-min(all_ventyx_lowimpact$TimelineDays)
-
-all_ventyx_nonlowimpact <- Ventyx_dataset %>% 
-  filter(lr_tif == 0)
-
-mean(all_ventyx_nonlowimpact$TimelineDays)
-max(all_ventyx_nonlowimpact$TimelineDays)
-min(all_ventyx_nonlowimpact$TimelineDays)
+# ## timeline stats
+# 
+# mean(Ventyx_dataset$TimelineDays)
+# min(Ventyx_dataset$TimelineDays)
+# max(Ventyx_dataset$TimelineDays)
+# 
+# # low impact
+# all_ventyx_lowimpact <- Ventyx_dataset %>% 
+#   filter(lr_tif == 1)
+# mean(all_ventyx_lowimpact$TimelineDays)
+# max(all_ventyx_lowimpact$TimelineDays)
+# min(all_ventyx_lowimpact$TimelineDays)
+# 
+# all_ventyx_nonlowimpact <- Ventyx_dataset %>% 
+#   filter(lr_tif == 0)
+# 
+# mean(all_ventyx_nonlowimpact$TimelineDays)
+# max(all_ventyx_nonlowimpact$TimelineDays)
+# min(all_ventyx_nonlowimpact$TimelineDays)
 
 
 ```
