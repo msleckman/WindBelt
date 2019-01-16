@@ -153,10 +153,11 @@ View(ventyx_nonlowimpact)
  Impact_by_state <- Ventyx_dataset %>%
    select(ProjectName, ProjectDeveloper, State, lr_tif) %>% 
    group_by(State) %>% 
-   mutate(low_impact = sum(lr_tif == 1)) %>% 
-   mutate(nonlow_impact = sum (lr_tif == 0)) %>% 
+   mutate(LowImpact = sum(lr_tif == 1)) %>% 
+   mutate(NonLowImpact = sum (lr_tif == 0)) %>% 
+   mutate(AvgTimeline = mean(TimelineDays)) %>% 
    mutate(total = sum(lr_tif == 1 | lr_tif == 0)) %>% 
-   select(State,low_impact, nonlow_impact, total) %>% 
+   select(State,low_impact, nonlow_impact, TimelineDays, total) %>% 
    unique()
  
 
