@@ -39,6 +39,7 @@ Other notes:
  str_match()
  regex() 
 ```{r packages_read_in}
+
 ### Packages 
 # install.packages("pdftools", "devtools")
 library(pdftools)
@@ -54,6 +55,8 @@ library(tidyverse)
 library(purrr)
 library(googledrive)
 library(knitr)
+library(gsubfn)
+library(dplyr)
 ```
 
 
@@ -130,7 +133,7 @@ View(google_news)
 
 
 #LU
-directory1 <- "D:/Desktop/All_LexisUni_PDFs"
+directory1 <- "H:/Desktop/NU_PDFS_R/"
 directory1
 # directory <- G:/TextAnalysis/NexisUni/Margaux_PDFs
 # directory <- G:/TextAnalysis/NexisUni/
@@ -143,7 +146,7 @@ directory1
 #directory1
 
 #Mac Computer
-directory1 <- "~/Desktop/All_LexisUni_PDFs"
+# directory1 <- "~/Desktop/All_LexisUni_PDFs"
 directory1
 
 pdfs <- paste(directory1, "/", list.files(directory1, pattern = "*.pdf", ignore.case = T), sep = "")
@@ -160,7 +163,7 @@ pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
 #LU
 
 #each row is a pdf doc name (document) with the full pdf text
-#projects_pdftext <- data_frame(document = pdfs_names, text = pdfs_text)
+projects_pdftext <- data_frame(document = pdfs_names, text = pdfs_text)
 #head(projects_pdftext)
 #View(projects_pdftext)
 # text column : each row is an element of a list 
@@ -168,7 +171,7 @@ pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
 
 #Googlenews
 
-projects_pdftext <- data_frame(document = google_news$ProjectName, text = google_news$FullText)
+projects_pdftext_google <- data_frame(document = google_news$ProjectName, text = google_news$FullText)
 
 #document = project name
 
@@ -176,11 +179,66 @@ projects_pdftext <- data_frame(document = google_news$ProjectName, text = google
 ```
 #### Dataframe 2 spliting text by page
 ```{r dataframe2}
+
+
 # dataset with each page in one row
 project_pdfpages <- projects_pdftext %>% 
   unnest() # splits pdf text by page and removes list format ( c("")) since each element of the list is now its own row.
 View(project_pdfpages)
 ```
+
+#### Remove duplicates titles
+
+```{r extract_pdfs_titles}
+
+projects_pdf_title <- projects_pdftext %>% 
+  mutate(title_extract = grepl("\r\n \\d.(.*?) Client/Matter:", text, ignore.case = FALSE)) %>% 
+  filter(title_extract == TRUE) %>% 
+  mutate(title_match = strapply(text, "\r\n \\d.(.*?) Client/Matter:"))
+
+twodot <- projects_pdftext[grep("TwoDot",projects_pdftext$document),] %>% 
+  tidyr::unnest() %>% 
+  
+### IMPORTANT LINE: aggregate all text so that the entire pdf is a string 
+aggregated_table <-aggregate(twodot$text, list(twodot$document), paste, collapse = ";")
+
+aggregated_table <- aggregated_table%>% 
+  mutate(title_match = strapply(x, "\r\n \\d.(.*?) Client/Matter:")) %>% 
+  unnest()
+
+View(aggregated_table)  
+  
+twodot <- twodot %>% 
+  mutate(title_extract = paste(unlist(twodot$text), collapse = " "))
+  mutate(title_match = strapply(text, "\r\n \\d.(.*?) Client/Matter:")) %>% 
+  mutate(title_text = )
+
+twodot <- twodot %>%
+  dplyr::filter(!title_match == "NULL") %>% 
+  tidyr::unnest()
+
+View(twodot)
+
+View(projects_pdftext[grep("TwoDot",projects_pdftext$document),])
+
+twodot_2 <- twodot_2 %>% 
+  tidyr::unnest()
+
+  # note: some titles are on multiple pages so the pdf document will appear multiple times will be shown multiple times. Note some pdfs are merged, and therefore have multiple pages with table of content 
+
+projects_pdf_title_2 <- projects_pdf_title %>% 
+  tidyr::unnest() %>%   # separating all titles
+  mutate(title_match = str_replace_all(title_match, "lexis|nexis|uni|about lexisnexis|privacy policy|terms & conditions|Copyright © 2018 LexisNexis|lexisnexis[\r\n]", "")) %>% 
+  mutate(duplicates = duplicated(title_match)) %>% 
+  filter(duplicates == TRUE)
+
+length(unique(projects_pdf_title_2$document))
+View(projects_pdf_title_2)
+```
+
+
+
+
 #### Dataframe 3 spliting page text by word (unnest_tokens())
 ```{r dataframe3}
 #Dataset with each work in or row associated with its pdf source 
