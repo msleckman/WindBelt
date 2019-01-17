@@ -67,6 +67,7 @@ library(gsubfn)
 
 
 ```{r connect_to_googledrive}
+
 # The google drive folder id is simply the id in the folder url after the last slash
 # So, in this example, the id here is derived from https://drive.google.com/drive/folders/1kZuJF3eS7SIiC8VBeGc6vVNvpBZHLnxg?ogsrc=32
 
@@ -281,8 +282,7 @@ projects_pdf_titles <- project_pdfs_full_text %>%
 ## Identify duplicate headlines 
   
   
-  
-  
+
   
 ```
 
@@ -394,20 +394,21 @@ total_sentiment_google <- projects_score_bind_google %>%
 #Convert to data frame
 total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
 View(total_sentiment_NU_df)
-
+View(ventyx_df)
 # To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
 
-total_sentiment_NU <- total_sentiment_NU %>% 
-  mutate(Extracted_ProjectName = sub("\\_.*$", "", document))
+total_sentiment_NU_df <- total_sentiment_NU_df %>% 
+  mutate(ProjectName = sub("\\_.*$", "", document))
     # generate merge with extracted_projectName
     #verify: may be spaces in Ventyx project name
-
+View(total_sentiment_NU_df)
 #Merge with original data (ventyx_df)
-ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "Extacted_ProjectName", all = TRUE)
+ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "ProjectName", all = TRUE)
 # ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE) #old
 
 #Rename "totals" column
 ventyx_df_NU_Sen <- rename(ventyx_df_NU_Sen, NU_Sentiment=totals)
+View(ventyx_df_NU_Sen)
 
 #### Google #####
 #Convert to data frame
@@ -415,6 +416,7 @@ total_sentiment_google_df = as.data.frame(total_sentiment_google)
 #Remove white space in order to perform merge (google data has extra white spaces)
 total_sentiment_google_df$document <- gsub(" ", "", total_sentiment_google_df$document, fixed = TRUE)
 
+View(total_sentiment_google_df)
 #Merge with original data
 ventyx_df_google_Sen <- merge(ventyx_df, total_sentiment_google_df, by.x ="ProjectName", by.y = "document", all = TRUE)
 #Rename "totals" columns
