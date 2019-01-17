@@ -43,10 +43,15 @@ Other notes:
 ### Packages 
 library(pdftools)
 library(tm)
+install.packages("rlang")
+# remove.packages("devtools")
+# install.packages("devtools")
 library(devtools)
+library(dplyr)
 library(tidytext)
 library(broom)
 library(data.table)
+install.packages("colorspace")
 library(tidyverse)
 library(purrr)
 library(googledrive)
@@ -57,7 +62,7 @@ library(gsubfn)
 # install.packages("tidyverse")
 # install.packages("tidytext")
 # library(tm.plugin.lexisnexis)
-# install.packages("gsubfn")
+# install.packages("gsubfn", "dplyr", "tidytext")
 ```
 
 
@@ -225,6 +230,8 @@ projects_words_NU <- project_pdfs_full_text %>%
                       "@", 
                       "lexisnexis", "(/p)"))
 
+head(projects_words_NU)
+
 # 
 # projects_words_NU <- projects_NU %>% 
 #   unnest() %>% 
@@ -254,14 +261,18 @@ projects_words_NU <- project_pdfs_full_text %>%
 #Dataset with each word in a row associated with its project source 
 projects_words_google <- projects_google %>% 
   tidytext::unnest_tokens(output = word, input = text, token = "words", to_lower = F)
+head(projects_words_google)
+
 ```
 
 ```{r Extract_headlines_id_duplicates}
 
+#can ignore for regression
+
 ## extract headlines 
 projects_pdf_titles <- project_pdfs_full_text %>% 
   mutate(title_extract = grepl("\r\n \\d.(.*?) Client/Matter:", text, ignore.case = FALSE)) 
-%>% 
+# %>% 
   # filter(title_extract == TRUE) %>% 
   # mutate(title_match = strapply(text, "\r\n \\d.(.*?) Client/Matter:"))
 
@@ -378,12 +389,23 @@ total_sentiment_google <- projects_score_bind_google %>%
 
 ####Combine sentiment scores with original data
 ```{r combinewithsen}
+
 #### NU ####
 #Convert to data frame
 total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
+View(total_sentiment_NU_df)
+
+# To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
+
+total_sentiment_NU <- total_sentiment_NU %>% 
+  mutate(Extracted_ProjectName = sub("\\_.*$", "", document))
+    # generate merge with extracted_projectName
+    #verify: may be spaces in Ventyx project name
 
 #Merge with original data (ventyx_df)
-ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE)
+ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "Extacted_ProjectName", all = TRUE)
+# ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE) #old
+
 #Rename "totals" column
 ventyx_df_NU_Sen <- rename(ventyx_df_NU_Sen, NU_Sentiment=totals)
 
@@ -404,19 +426,25 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
   rename(Google_Sentiment=totals) %>% 
   mutate(NU_Sentiment = ifelse(is.na(NU_Sentiment),0,NU_Sentiment)) %>% 
   mutate(Google_Sentiment = ifelse(is.na(Google_Sentiment),0,Google_Sentiment))
+
+View(total_sentiment_NU_df)
+View(ventyx_df_NU_google_Sen)
+
 ```
 
 ####Convert sentiment scores to positive or negative in new column (optional)
 ```{r pos_or_neg_sen}
+
 ventyx_df_NU_Sen <- mutate(ventyx_df_NU_Sen, Sign_NU = ifelse(NU_Sentiment>0, "Positive", "Negative"))
 ventyx_df_google_Sen <- mutate(ventyx_df_google_Sen, Sign_Google = ifelse(Google_Sentiment>0, "Positive", "Negative"))
 ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>% 
   mutate(Sign_Google = ifelse(Google_Sentiment>=0, "Positive", "Negative")) %>% 
   mutate(Sign_NU = ifelse(NU_Sentiment>=0, "Positive", "Negative"))
 
-#View(ventyx_df_NU_Sen)
-#View(ventyx_df_google_Sen)
-#View(ventyx_df_NU_google_Sen)
+View(ventyx_df_NU_Sen)
+View(ventyx_df_google_Sen)
+View(ventyx_df_NU_google_Sen)
+
 ```
 
 ####Prepare the relevant columns for regression
@@ -485,6 +513,7 @@ summary(ventyx_df_NU_google_Sen)
 ```{r regressions}
 ####1. All variables included -- using NU sentiment scores. N/A scores removed from dataset.
 reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_Sen)
+print(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
 
 #Plotting residuals. This should be repeated for the other regressions.
 r1 <- resid(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
@@ -497,7 +526,8 @@ summary(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
 ####
 
 
-####2. All variables included -- using NU sentiment scores and an interaction between the high-low variable and NU sentiment. N/A scores removed from dataset.
+
+##2. All variables included -- using NU sentiment scores and an interaction between the high-low variable and NU sentiment. N/A scores removed from dataset.
 reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_Sen)
 
 summary(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter)
@@ -602,6 +632,7 @@ summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
 #Results no significance found
 #H_L_W: 0.154
 ####
+
 ```
 
 
