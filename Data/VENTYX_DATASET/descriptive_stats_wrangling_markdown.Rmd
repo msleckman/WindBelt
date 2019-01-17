@@ -83,6 +83,9 @@ home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
 #   filter(!is.na(lr_tif))
 
 Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")) %>% filter(!is.na(lr_tif))
+Ventyx_dataset$Household_MedianIncome <- as.numeric(Ventyx_dataset$Household_MedianIncome)
+
+
                             
   
 View(Ventyx_dataset)
@@ -148,21 +151,46 @@ View(ventyx_nonlowimpact)
 #   
 #  View(Ventyx_dataset_lowhighimpact_totals)
  
- ##Summary table of low risk v non-low risk areas by state:
+ ##Summary tables:
+
+# By State:
  
- Impact_by_state <- Ventyx_dataset %>%
-   select(ProjectName, ProjectDeveloper, State, lr_tif) %>% 
+ ByState <- Ventyx_dataset %>%
+   select(ProjectName, ProjectDeveloper, State, lr_tif, Capacity, TimelineDays) %>% 
    group_by(State) %>% 
-   mutate(low_impact = sum(lr_tif == 1)) %>% 
-   mutate(nonlow_impact = sum (lr_tif == 0)) %>% 
-   mutate(total = sum(lr_tif == 1 | lr_tif == 0)) %>% 
-   select(State,low_impact, nonlow_impact, total) %>% 
+   mutate(LowImpact = sum(lr_tif == 1)) %>% 
+   mutate(NonLowImpact = sum (lr_tif == 0)) %>% 
+   mutate(TotalProjects = sum(lr_tif == 1 | lr_tif == 0)) %>%
+   mutate(AvgCapacity = mean(Capacity)) %>% 
+   mutate(AvgTimeline = mean(TimelineDays)) %>% 
+   select(State,LowImpact, NonLowImpact, TotalProjects, AvgCapacity, AvgTimeline) %>% 
+   # Need to add column for sentiment
    unique()
  
 
-View(Impact_by_state)
+View(ByState)
 
-kable(Impact_by_state)
+kable(ByState)
+
+
+## By Impact:
+
+ByImpact <- Ventyx_dataset %>%
+   select(ProjectName, ProjectDeveloper, State, lr_tif, Capacity, TimelineDays, Household_MedianIncome, View_Score) %>% 
+   group_by(lr_tif) %>% 
+   mutate(TotalProjects = sum(lr_tif == 1 | lr_tif == 0)) %>%
+   mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgTimeline = mean(TimelineDays)) %>%
+  mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
+  mutate(Avg_Viewscore = mean(View_Score)) %>% 
+   select(TotalProjects, AvgCapacity, AvgTimeline, AvgMedianIncome, Avg_Viewscore) %>% 
+   # Need to add column for sentiment
+   unique()
+
+View(ByImpact)
+
+kable(ByImpact)
+ 
 
 ```
 
