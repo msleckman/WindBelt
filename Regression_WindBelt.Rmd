@@ -219,7 +219,7 @@ View(head(project_pdfs_full_text))
 
 projects_words_NU <- project_pdfs_full_text %>%
   tidytext::unnest_tokens(output = word, input = text, token = 
-                          "words", to_lower = T) %>%   # important to put all words to lower because it AFINN dictionnary has words      
+                          "words", to_lower = T) %>%   # important to put all words to lower because it AFINN dictionnary has words only in lower case format     
   filter(!word %in% c("lexis",
                       "nexis", 
                       "Uni",
@@ -297,12 +297,13 @@ projects_words_count_google <- projects_words_google %>%
 #### Sentiment dictionaries
 ```{r sentiment_dictionaries}
 # Using 'afinn' vs. 'nrc sentiment tests.
+
 get_sentiments("afinn") # associates word with a sentiment score
 #afinn scores/ranks from -5 to +5 for positive or negative sentiment.
 
 get_sentiments("nrc") # associated word with another sentiment feeling word
 
-View(get_sentiments("afinn"))
+# View(get_sentiments("afinn"))
 # View(get_sentiments("nrc"))
 
 # We want scores not categorized words, so we will use AFINN for now.
@@ -317,40 +318,27 @@ projects_score_bind_NU <-projects_words_count_NU %>%
   filter(!is.na(score)) 
 # Note: Many of the scores per words are NA simply because that word does not exist. 
   
+unique(projects_score_bind_NU$document)
 
 # look at which projects have NA all NA's as words
 projects_score_bind_NU_NA <-projects_words_count_NU %>% 
   left_join(get_sentiments("afinn"), by = "word") %>% 
   filter(is.na(score)) 
 
-length(unique(projects_score_bind_NU$document)) # 346
-length(unique(projects_words_count_NU$document)) # 349 -->  three projects get removed when filtering all NA scores. This indicates thatthree projects have no words, or only words with no sentiment 
 
-# What projects
-b <- unique(projects_score_bind_NU$document)
-a <- unique(projects_words_count_NU$document)
-setdiff(a,b)
+length(unique(projects_score_bind_NU$document)) # 349
+### general examples
 
-# the project that get taken out as a result of word parsing and filtering of NA sentiment scores 
-# score DF nonfiltered
-projects_score_bind_NU <-projects_words_count_NU %>% 
-  left_join(get_sentiments("afinn"), by = "word")
-
-  # 1. "Allendorf_NorthernAlternativeEnergy_1(2).PDF"
-View(projects_score_bind_NU %>% 
+## projects with few words
+projects_score_bind_NU %>% 
   filter(document == "Allendorf_NorthernAlternativeEnergy_1(2).PDF")
-    )
 
-  # 2. "GreatPathfinderWind_ApexCleanEnergy_1(4).PDF"
-View(projects_score_bind_NU %>% 
-       filter(document == "GreatPathfinderWind_ApexCleanEnergy_1(4).PDF")
-     )
-## yea...pdf has nothing in it really
-   
-  # 3. "RidgeEnergyProject_RidgeEnergy_1.PDF"  
-View(projects_score_bind_NU %>% 
-       filter(document == "RidgeEnergyProject_RidgeEnergy_1.PDF")
-     )
+projects_score_bind_NU %>% 
+  filter(document == "GreatPathfinderWind_ApexCleanEnergy_1(4).PDF")
+
+## more words
+projects_score_bind_NU %>% 
+  filter(document == "ArranzWindTuxedo_Energos_1.PDF")
 
 #### Google ####
 projects_score_bind_google <- projects_words_count_google %>% 
@@ -364,7 +352,10 @@ projects_score_bind_google <- projects_words_count_google %>%
 
 #### Determine Project Scores
 ```{r projectscores}
+
 #To determine the total score for each document (NU) or project (Google)
+
+View(ventyx_df)
 
 ##### NU ######
 total_sentiment_with_stats_NU <- projects_score_bind_NU %>% 
@@ -381,6 +372,7 @@ total_sentiment_NU <- projects_score_bind_NU %>%
   
 #View(total_sentiment_with_stats_NU)
 View(total_sentiment_NU)
+length(unique(total_sentiment_NU$document)) # --> 349
 
 #### Google #####
 total_sentiment_with_stats_google <- projects_score_bind_google %>% 
@@ -404,28 +396,34 @@ total_sentiment_google <- projects_score_bind_google %>%
 ```{r combinewithsen}
 
 #### NU ####
+
 #Convert to data frame
 total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
 View(total_sentiment_NU_df)
 View(ventyx_df)
 # To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
 
-total_sentiment_NU_df <- total_sentiment_NU_df %>% 
-  mutate(ProjectName = sub("\\_.*$", "", document))
-    # generate merge with extracted_projectName
-    #verify: may be spaces in Ventyx project name
+# Remove white space in document names in ventyx and total_sentiment_NU_df
 
+total_sentiment_NU_df$document <- gsub(" ", "", total_sentiment_NU_df$document)
+# mutate new column with project names
+total_sentiment_NU_df <- total_sentiment_NU_df %>% 
+  mutate(ProjectName = sub("\\_.*$", "", document)) # extract words before first '_' in document name
+
+#Ventyx 
+ventyx_df$document <- gsub(" ", "", ventyx_df$document)
+  
 View(ventyx_df)
 View(total_sentiment_NU_df)
 
 #Merge with original data (ventyx_df)
-ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "ProjectName", all = TRUE)
+ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE)
 # ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE) #old
 
 #Rename "totals" column
 ventyx_df_NU_Sen <- rename(ventyx_df_NU_Sen, NU_Sentiment=totals)
 
-# View(ventyx_df_NU_Sen)
+View(ventyx_df_NU_Sen)
 
 #### Google #####
 #Convert to data frame
