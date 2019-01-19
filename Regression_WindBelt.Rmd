@@ -43,7 +43,7 @@ Other notes:
 ### Packages 
 library(pdftools)
 library(tm)
-install.packages("rlang")
+# install.packages("rlang")
 # remove.packages("devtools")
 # install.packages("devtools")
 library(devtools)
@@ -91,7 +91,7 @@ pdf_downloader <- function(templates_dribble, local_folder){
   for (i in 1:nrow(templates_dribble)){
     drive_download(as_id(templates_dribble$id[[i]]), 
                    file.path(local_folder, templates_dribble$name[[i]]),
-                   overwrite = FALSE) #check if overwrite is needed here
+                   overwrite = F) #check if overwrite is needed here
   }
 }
 
@@ -141,6 +141,7 @@ ventyx_df <- mutate(ventyx_projects, H_L_W = ifelse(lr_tif>0, "Low", "High"))
 
 #Remove whitespace for name matching later one
 ventyx_df$ProjectName <- gsub(" ", "", ventyx_df$ProjectName, fixed = TRUE)
+ventyx_df$document <- gsub(" ", "", ventyx_df$document, fixed = TRUE)
 
 #### Google News ######
 #Before running this code, make sure you have the Google scraping dataset saved on your desktop. The file path that the "read_csv" function accesses should be where the file is located on your desktop. 
@@ -183,6 +184,7 @@ pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
 
 #### Create initial dataframes that include document name and text
 ```{r dataframe_creation}
+
 ##### NU ####
 #This combines the pdfs_names and pdfs_texts variables from the previous code chunk, into a single dataframe
 #Each row is a PDF doc name with the full pdf text. Note: in the text column, each row is an element of a list
@@ -192,6 +194,7 @@ projects_NU <- data_frame(document = pdfs_names, text = pdfs_text)
 #This creates a data frame of just the project name and full text for each Google News article
 #Each row is the project name with the full article text
 projects_google <- data_frame(document = google_df$ProjectName, text = google_df$FullText)
+
 ```
 
 #### Split text by page (only NU)
@@ -206,9 +209,10 @@ project_pdfs_full_text <- project_pdfpages_NU %>%
   summarise(text = paste(text, collapse = " (/p) "))
     # note: if you write this to a csv, the next will go the next line and won't look like a clean csv (i.e. Alex's google news csv). TBc.
 
-View(head(projects_NU))
-View(head(project_pdfpages_NU))
-View(head(project_pdfs_full_text))
+# View(head(projects_NU))
+# View(head(project_pdfpages_NU))
+# View(head(project_pdfs_full_text))
+
 ```
 
 #### Split text by word (unnest_tokens())
@@ -355,7 +359,7 @@ projects_score_bind_google <- projects_words_count_google %>%
 
 #To determine the total score for each document (NU) or project (Google)
 
-View(ventyx_df)
+# View(ventyx_df)
 
 ##### NU ######
 total_sentiment_with_stats_NU <- projects_score_bind_NU %>% 
@@ -399,31 +403,50 @@ total_sentiment_google <- projects_score_bind_google %>%
 
 #Convert to data frame
 total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
-View(total_sentiment_NU_df)
-View(ventyx_df)
+# View(total_sentiment_NU_df)
+# View(ventyx_df)
 # To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
 
 # Remove white space in document names in ventyx and total_sentiment_NU_df
 
-total_sentiment_NU_df$document <- gsub(" ", "", total_sentiment_NU_df$document)
-# mutate new column with project names
-total_sentiment_NU_df <- total_sentiment_NU_df %>% 
-  mutate(ProjectName = sub("\\_.*$", "", document)) # extract words before first '_' in document name
 
+# mutate new column with project names
+# total_sentiment_NU_df <- total_sentiment_NU_df %>%
+#   mutate(ProjectName = sub("\\_.*$", "", document)) # extract words before first '_' in document name
+
+#NU
+total_sentiment_NU_df$document <- gsub(" ", "", total_sentiment_NU_df$document)
 #Ventyx 
-ventyx_df$document <- gsub(" ", "", ventyx_df$document)
+# ventyx_df$document <- gsub(" ", "", ventyx_df$document)
   
-View(ventyx_df)
-View(total_sentiment_NU_df)
+# View(ventyx_df)
+# View(total_sentiment_NU_df)
 
 #Merge with original data (ventyx_df)
+# 
+# View(ventyx_df)
+# View(total_sentiment_NU_df)
+# 
+# a <- intersect(ventyx_df$document, total_sentiment_NU_df$document) 
+# setdiff(total_sentiment_NU_df$document, a)
+
+ventyx_df[ventyx_df$ProjectName == "71RWind",]$document = "71RWind_71Ranch_1(1).PDF"
+ventyx_df[ventyx_df$ProjectName == "CHillWindFarm",]$document = "CHill_ExergyIntegratedSystems_1.PDF"
+ventyx_df[ventyx_df$ProjectName == "AdamsProject",]$document = "AdamsProject_MidAmerican_1(2).PDF"
+ventyx_df[ventyx_df$ProjectName == "LJTrust",]$document = "LJTrust_LJTrust_1(1).PDF"
+ventyx_df[ventyx_df$ProjectName == "MinonkWindFarm",]$document = "MinonkWindFarm_MinonkWindFarm_1.PDF"
+
+  
 ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE)
 # ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE) #old
 
 #Rename "totals" column
 ventyx_df_NU_Sen <- rename(ventyx_df_NU_Sen, NU_Sentiment=totals)
 
-View(ventyx_df_NU_Sen)
+# View(ventyx_df_NU_Sen)
+length(unique(ventyx_df_NU_Sen$document))
+length(unique(total_sentiment_NU_df$document))
+
 
 #### Google #####
 #Convert to data frame
@@ -433,20 +456,41 @@ total_sentiment_google_df$document <- gsub(" ", "", total_sentiment_google_df$do
 
 # View(total_sentiment_google_df)
 
+
 #Merge with original data
 ventyx_df_google_Sen <- merge(ventyx_df, total_sentiment_google_df, by.x ="ProjectName", by.y = "document", all = TRUE)
 #Rename "totals" columns
 ventyx_df_google_Sen <- rename(ventyx_df_google_Sen, Google_Sentiment=totals)
 
+# View(ventyx_df_google_Sen)
+# names(total_sentiment_google_df)
+# names(ventyx_df_NU_Sen)
+# ventyx_df_NU_Sen$
 #### Combined ####
-ventyx_df_NU_google_Sen <- merge(ventyx_df_NU_Sen, total_sentiment_google_df, by.x = "ProjectName", by.y = "document" ,all = TRUE)
+
+ventyx_df_NU_google_Sen <- merge(ventyx_df_NU_Sen, total_sentiment_google_df, by.x = "ProjectName", by.y = "document", all = TRUE)
+
 ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>% 
   rename(Google_Sentiment=totals) %>% 
   mutate(NU_Sentiment = ifelse(is.na(NU_Sentiment),0,NU_Sentiment)) %>% 
   mutate(Google_Sentiment = ifelse(is.na(Google_Sentiment),0,Google_Sentiment))
 
+
+ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>% 
+  filter(Capacity >= 0) %>% 
+  filter(TimelineDays > 0)
+
+unique(ventyx_df_NU_google_Sen$document)
+
+View(ventyx_df_NU_google_Sen)
+
+write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
+
+
+# names(ventyx_df_google_Sen)
 # View(total_sentiment_NU_df)
 # View(ventyx_df_NU_google_Sen)
+
 
 ```
 
@@ -540,6 +584,7 @@ plot(r1)
 summary(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
 require(ggplot2)
 
+
 install.packages("dotwhisker")
 require(dotwhisker)
 dwplot(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
@@ -566,6 +611,7 @@ dwplot(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter)+
 ```
 
 ```{r R3}
+
 ####3. All variables included -- using Google sentiment scores. N/A scores removed from dataset.
 reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_google_Sen)
 
