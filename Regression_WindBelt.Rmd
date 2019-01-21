@@ -230,12 +230,12 @@ projects_words_NU <- project_pdfs_full_text %>%
                       "about lexisnexis",
                       "Privacy Policy",
                       "Terms & Conditions", 
-                      "Copyright © 2018 LexisNexis",
+                      "Copyright ? 2018 LexisNexis",
                       " | ",  
                       "@", 
                       "lexisnexis", "(/p)"))
 
-head(projects_words_NU)
+#head(projects_words_NU)
 length(unique(projects_words_NU$document)) # results: still 349 projects here after word parsing
 # 
 # projects_words_NU <- projects_NU %>% 
@@ -484,7 +484,7 @@ unique(ventyx_df_NU_google_Sen$document)
 
 View(ventyx_df_NU_google_Sen)
 
-write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
+#write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
 
 
 # names(ventyx_df_google_Sen)
@@ -503,11 +503,48 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
   mutate(Sign_Google = ifelse(Google_Sentiment>=0, "Positive", "Negative")) %>% 
   mutate(Sign_NU = ifelse(NU_Sentiment>=0, "Positive", "Negative"))
 
-View(ventyx_df_NU_Sen)
-View(ventyx_df_google_Sen)
-View(ventyx_df_NU_google_Sen)
+#View(ventyx_df_NU_Sen)
+#View(ventyx_df_google_Sen)
+#View(ventyx_df_NU_google_Sen)
 
 ```
+
+####Add environmental memberships data
+```{r env_members}
+#For Alex
+#zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/zip_code_database.csv")
+
+#For Bren computers
+zip_conversion <- read_csv("~/Desktop/zip_code_database.csv")
+
+#For Alex
+#memberships <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/membership_data_combined.csv")
+
+#For Bren computers
+memberships <- read_csv("~/Desktop/membership_data_combined.csv")
+
+#Make sure all zip codes are 5 digits
+memberships$zip <- sprintf("%05d", memberships$zip)
+
+#Merge memberships data with county
+zip_county_merge <- merge(zip_conversion, memberships, by = "zip")
+
+#Remove the word county, parish, and municipality, then trim any trailing whitespace
+zip_county_merge$county <- gsub("County","",zip_county_merge$county)
+zip_county_merge$county <- gsub("Parish","",zip_county_merge$county)
+zip_county_merge$county <- gsub("Municipality","",zip_county_merge$county)
+zip_county_merge$county <- trimws(zip_county_merge$county, "r")
+
+#Group by county and sum all of the members for environmental organizations
+zip_county_merge_aggregate <- zip_county_merge %>% 
+  group_by(county) %>% 
+  summarise(members_env = sum(members_nrdc,members_nwf,members_tnc))
+
+#Merge with ventyx dataset and set NA membership values to zero
+ventyx_df_NU_google_Sen_Memb <- merge(ventyx_df_NU_google_Sen, zip_county_merge_aggregate, by.x = "County", by.y = "county", all.x = TRUE)
+ventyx_df_NU_google_Sen_Memb$members_env[is.na(ventyx_df_NU_google_Sen_Memb$members_env)] <- 0
+```
+
 
 ####Prepare the relevant columns for regression
 ```{r organize_for_regressions}
@@ -551,23 +588,23 @@ ventyx_df_google_Sen$Sign_Google <- as.factor(ventyx_df_google_Sen$Sign_Google)
 #summary(ventyx_df_google_Sen)
 
 #### Combined ####
-ventyx_df_NU_google_Sen$H_L_W <- as.factor(ventyx_df_NU_google_Sen$H_L_W)
+ventyx_df_NU_google_Sen_Memb$H_L_W <- as.factor(ventyx_df_NU_google_Sen_Memb$H_L_W)
 
-ventyx_df_NU_google_Sen$PopDensity_mi <- as.numeric(ventyx_df_NU_google_Sen$PopDensity_mi)
+ventyx_df_NU_google_Sen_Memb$PopDensity_mi <- as.numeric(ventyx_df_NU_google_Sen_Memb$PopDensity_mi)
 
-ventyx_df_NU_google_Sen$Household_MedianIncome <- as.numeric(ventyx_df_NU_google_Sen$Household_MedianIncome)
+ventyx_df_NU_google_Sen_Memb$Household_MedianIncome <- as.numeric(ventyx_df_NU_google_Sen_Memb$Household_MedianIncome)
 
-ventyx_df_NU_google_Sen$View_Score <- as.numeric(ventyx_df_NU_google_Sen$View_Score)
+ventyx_df_NU_google_Sen_Memb$View_Score <- as.numeric(ventyx_df_NU_google_Sen_Memb$View_Score)
 
-ventyx_df_NU_google_Sen$H_L_W <- relevel(ventyx_df_NU_google_Sen$H_L_W, ref = "High")
+ventyx_df_NU_google_Sen_Memb$H_L_W <- relevel(ventyx_df_NU_google_Sen_Memb$H_L_W, ref = "High")
 
-ventyx_df_NU_google_Sen$Sign_Google <- as.factor(ventyx_df_NU_google_Sen$Sign_Google)
+ventyx_df_NU_google_Sen_Memb$Sign_Google <- as.factor(ventyx_df_NU_google_Sen_Memb$Sign_Google)
 
-ventyx_df_NU_google_Sen$Sign_NU <- as.factor(ventyx_df_NU_google_Sen$Sign_NU)
+ventyx_df_NU_google_Sen_Memb$Sign_NU <- as.factor(ventyx_df_NU_google_Sen_Memb$Sign_NU)
 
-str(ventyx_df_NU_google_Sen)
+str(ventyx_df_NU_google_Sen_Memb)
 
-summary(ventyx_df_NU_google_Sen)
+summary(ventyx_df_NU_google_Sen_Memb)
 ```
 
 
@@ -645,7 +682,7 @@ dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
 
 ```{r R5}
 ####5. All variables included -- using both NU and Google scores. N/A scores coded as "0".
-reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
+reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)
 dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)
@@ -657,7 +694,7 @@ dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)
 
 ```{r R6}
 ####6. All variables included -- using only NU scores. N/A scores coded as "0".
-reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
+reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)
 
@@ -669,7 +706,7 @@ dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)
 
 ```{r R7}
 ####7. All variables included -- using only NU scores and an interaction between high-low and NU sentiment. N/A scores coded as "0".
-reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
+reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
@@ -681,7 +718,7 @@ dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 
 ```{r R8}
 ####8. All variables included -- using only Google scores. N/A scores coded as "0"
-reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
+reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)
 dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
@@ -696,7 +733,7 @@ dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
 ```{r R9}
 
 ####9. All variables included -- using only Google scores and an interaction between high-low and Google sentiment. N/A scores coded as "0"
-reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
+reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
@@ -708,7 +745,7 @@ dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 
 ```{r R10}
 ####10. All variables included -- using both NU and Google scores and an interaction between the high-low variable and both NU and Google sentiment. N/A scores coded as "0"
-reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
+reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)
@@ -722,7 +759,7 @@ dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 
 ```{r R11}
 ####11. NU Sentiment on left-hand side. N/A scores coded as "0"
-reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(NU_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
+reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(NU_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)
 dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)
@@ -732,7 +769,7 @@ dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)
 
 ```{r R12}
 ####12. Google Sentiment on left-hand side. N/A scores coded as "0"
-reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(Google_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(Google_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
 
 summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
 dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
@@ -742,7 +779,22 @@ dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
 
 ```
 
+```{r R13}
+####13. Timeline on left-hand side, using NU sentiment. Interaction term between NU and high-low impact. Environmental memberships variable added. N/A scores coded as 0
+reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
 
+summary(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+```
+
+
+```{r R14}
+####14. Timeline on left-hand side, using Google sentiment. Interaction term between Google and high-low impact. Environmental memberships variable added. N/A scores coded as 0
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
+
+summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+```
 
 
 ## OTHER 
