@@ -480,9 +480,9 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
   filter(Capacity >= 0) %>% 
   filter(TimelineDays > 0)
 
-unique(ventyx_df_NU_google_Sen$document)
+# unique(ventyx_df_NU_google_Sen$document)
 
-View(ventyx_df_NU_google_Sen)
+# View(ventyx_df_NU_google_Sen)
 
 #write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
 
@@ -541,8 +541,8 @@ zip_county_merge_aggregate <- zip_county_merge %>%
   summarise(members_env = sum(members_nrdc,members_nwf,members_tnc))
 
 #Merge with ventyx dataset and set NA membership values to zero
-ventyx_df_NU_google_Sen_Memb <- merge(ventyx_df_NU_google_Sen, zip_county_merge_aggregate, by.x = "County", by.y = "county", all.x = TRUE)
-ventyx_df_NU_google_Sen_Memb$members_env[is.na(ventyx_df_NU_google_Sen_Memb$members_env)] <- 0
+ventyx_df_NU_google_Sen <- merge(ventyx_df_NU_google_Sen, zip_county_merge_aggregate, by.x = "County", by.y = "county", all.x = TRUE)
+ventyx_df_NU_google_Sen$members_env[is.na(ventyx_df_NU_google_Sen$members_env)] <- 0
 ```
 
 
@@ -588,28 +588,31 @@ ventyx_df_google_Sen$Sign_Google <- as.factor(ventyx_df_google_Sen$Sign_Google)
 #summary(ventyx_df_google_Sen)
 
 #### Combined ####
-ventyx_df_NU_google_Sen_Memb$H_L_W <- as.factor(ventyx_df_NU_google_Sen_Memb$H_L_W)
+ventyx_df_NU_google_Sen$H_L_W <- as.factor(ventyx_df_NU_google_Sen$H_L_W)
 
-ventyx_df_NU_google_Sen_Memb$PopDensity_mi <- as.numeric(ventyx_df_NU_google_Sen_Memb$PopDensity_mi)
+ventyx_df_NU_google_Sen$PopDensity_mi <- as.numeric(ventyx_df_NU_google_Sen$PopDensity_mi)
 
-ventyx_df_NU_google_Sen_Memb$Household_MedianIncome <- as.numeric(ventyx_df_NU_google_Sen_Memb$Household_MedianIncome)
+ventyx_df_NU_google_Sen$Household_MedianIncome <- as.numeric(ventyx_df_NU_google_Sen$Household_MedianIncome)
 
-ventyx_df_NU_google_Sen_Memb$View_Score <- as.numeric(ventyx_df_NU_google_Sen_Memb$View_Score)
+ventyx_df_NU_google_Sen$View_Score <- as.numeric(ventyx_df_NU_google_Sen$View_Score)
 
-ventyx_df_NU_google_Sen_Memb$H_L_W <- relevel(ventyx_df_NU_google_Sen_Memb$H_L_W, ref = "High")
+ventyx_df_NU_google_Sen$H_L_W <- relevel(ventyx_df_NU_google_Sen$H_L_W, ref = "High")
 
-ventyx_df_NU_google_Sen_Memb$Sign_Google <- as.factor(ventyx_df_NU_google_Sen_Memb$Sign_Google)
+ventyx_df_NU_google_Sen$Sign_Google <- as.factor(ventyx_df_NU_google_Sen$Sign_Google)
 
-ventyx_df_NU_google_Sen_Memb$Sign_NU <- as.factor(ventyx_df_NU_google_Sen_Memb$Sign_NU)
+ventyx_df_NU_google_Sen$Sign_NU <- as.factor(ventyx_df_NU_google_Sen$Sign_NU)
 
-str(ventyx_df_NU_google_Sen_Memb)
+str(ventyx_df_NU_google_Sen)
 
-summary(ventyx_df_NU_google_Sen_Memb)
+summary(ventyx_df_NU_google_Sen)
 ```
 
 
 ####Run Regressions
 ```{r R1}
+
+
+install.packages("tidy")
 ####1. All variables included -- using NU sentiment scores. N/A scores removed from dataset.
 reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_Sen)
 print(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
@@ -669,7 +672,7 @@ dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
 reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_google_Sen)
 
 summary(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, order_vars = c("View_score, Google_Sentiment"))+
     theme_bw()+
   labs(x = "timeline")
  
@@ -680,45 +683,80 @@ dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
 ####
 ```
 
+
+### NA Sentiment scores coded as '0' - No interaction term
+
+#### NU and Google 
 ```{r R5}
 ####5. All variables included -- using both NU and Google scores. N/A scores coded as "0".
-reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
+reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)
-dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)
+
+reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State$terms
+
+filtered_r5 <- tidy(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State) %>% 
+  filter(term != "View_Score")
+  
+summary(filtered_r5)
+
+dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)+
+  theme_bw()+
+  labs(x = "timeline", y = "")+
+  geom_vline(xintercept = 0, colour = "grey60", linetype = 2)
+
++ # plot line at zero _behind_ coefs
+  relabel_predictors(c(View_Score = "view Score",
+                       google_Sentiment = "GOogle News Publicity score",
+                       NU_Sentiment = "Nexis Uni Publicity score",
+                       PopDensity_mi = "Population Density per m2",
+                       Household_MedianIncome = "Household Median Income",
+                       Capacity = "Capacity",
+                       H_L_WLow = "High vs. low impact area"))
+     # geom_vline(xintercept = 0, colour = "grey60", linetype = 2)
+
 #Results: significance found in Google sentiment (0.02867) and capacity (0.09094)
 #H_L_W p-value: 0.91039
 #NU_Sentiment: 0.57313
 ####
+## 01/20/18 - MS: with additional text, got more significance on some values it seems 
+reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State$terms
+
 ```
 
+#### NU only
 ```{r R6}
 ####6. All variables included -- using only NU scores. N/A scores coded as "0".
-reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
+reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)
 
-dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)
+dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)+
+    theme_bw()+
+  labs(x = "timeline")
 #Results: significance found in capacity (0.07004)
 #NU_Sentiment: 0.986
 #H_L_W: 0.856
+
 ```
 
 ```{r R7}
 ####7. All variables included -- using only NU scores and an interaction between high-low and NU sentiment. N/A scores coded as "0".
-reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
+reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
 
-summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-#Results: significance found in capacity (0.07323)
-#NU_Sentiment: 0.505
-#H_L_W: 0.643
-#Interaction: 0.26455
+## 01/20/18 - MS: with additional text, got more significance on values 
+#Results: significance found in capacity (0.04916)
+#NU_Sentiment: 0.73846
+#H_L_W: 0.73898
+
+#>>>>>>> 234d9c8e20e0a8df12e4b5896502ba0366e05b08
+
 ```
 
+#### Google only
 ```{r R8}
 ####8. All variables included -- using only Google scores. N/A scores coded as "0"
-reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
+reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)
 dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
@@ -727,61 +765,153 @@ dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
   
 #Results: significance found in Google sentiment (0.02972) and capacity (0.08989)
 #H_L_W: 0.93917
+#
 ####
+## 01/20/18 - MS: with additional text, got more significance on values 
+# Results: significance found in Google sentiment (0.02486) and capacity (0.06455)
+# H_L_W: 0.84519
+
+
 ```
 
+
+```{r COmparative dotwhiskerplot}
+
+R1 <- reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State
+R2 <- reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State
+R3 <- reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State
+
+dwplot(list(R1,R2, R3))+
+  theme_classic()
+  labs(x="timeline")
+
+```
+
+
+
+### NA Sentiment scores coded as '0' - w/ interaction term
+
+#### NU only 
+```{r R7}
+####7. All variables included -- using only NU scores and an interaction between high-low and NU sentiment. N/A scores coded as "0".
+reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
+
+summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+  theme_bw()+
+  labs(x = "timeline")
+
+#Results: significance found in capacity (0.07323)
+#NU_Sentiment: 0.505
+#H_L_W: 0.643
+#Interaction: 0.26455
+
+# 01/20/18 - With added text from NU
+#Results: significance found in capacity (0.05121)
+#NU_Sentiment: 0.539
+#H_L_W: 0.954
+#Interaction: 0.56229
+
+
+
+```
+
+##### Google only
 ```{r R9}
 
 ####9. All variables included -- using only Google scores and an interaction between high-low and Google sentiment. N/A scores coded as "0"
-reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
+reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+  theme_bw()+
+  labs(x = "timeline")
+
 #Results: significance found in Google sentiment (0.01327) and capacity (0.09445)
 #H_L_W: 0.63589
 #Interaction: 0.204
 ####
+#  With added text and removal of capacity/timelinedays  01/21/18
+#Results: significance found in Google sentiment (0.01023) and capacity (0.06793)
+#H_L_W: 0.54475
+#Interaction: 0.18378
+####
+
+
 ```
 
+#### Google and NU 
 ```{r R10}
 ####10. All variables included -- using both NU and Google scores and an interaction between the high-low variable and both NU and Google sentiment. N/A scores coded as "0"
-reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
+reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+  theme_bw()+
+  labs(x = "timeline")
+
 #Results: significance found in Google sentiment (0.0067)
 #NU_Sentiment: 0.196
 #H_L_W: 0.804
 #Interaction Google: 0.10846
 #Interaction NU: 0.15778
 ####
+# 01/21/18 - difference in results with changes to ventyx df and text from NU:
+#Results: significance found in Google sentiment (0.00522)
+#NU_Sentiment: 0.207
+#H_L_W: 0.88696
+#Interaction Google: 0.12861
+#Interaction NU: 0.38246
+####
+
 ```
 
+
+### Sentiment on left hand side - NAs still coded as '0'
+
+# NU sentiment
 ```{r R11}
 ####11. NU Sentiment on left-hand side. N/A scores coded as "0"
-reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(NU_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
+reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(NU_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
 
 summary(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)
-dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)
+
+dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)+
+  theme_bw()+
+  labs(x = "sentiment")
+
 #Results: significance found in H_L_W (0.0273)
 ####
-```
+# 01/21/18 - difference in results with changes to ventyx df and text from NU:
+#Results: significance found in H_L_W (0.0275)
 
+
+```
+# google sentiment
 ```{r R12}
 ####12. Google Sentiment on left-hand side. N/A scores coded as "0"
-reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(Google_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen_Memb)
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(Google_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
 
 summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
-dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
+
+dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)+
+  theme_bw()+
+  labs(x = "timeline")
+
 #Results no significance found
 #H_L_W: 0.154
 ####
+# 01/21/18 - difference in results with changes to ventyx df and text from NU:
+#H_L_W: 0.16372
+#capacity: 0.11
 
 ```
 
 ```{r R13}
 ####13. Timeline on left-hand side, using NU sentiment. Interaction term between NU and high-low impact. Environmental memberships variable added. N/A scores coded as 0
-reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
+reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
 
 summary(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
@@ -790,7 +920,7 @@ dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 
 ```{r R14}
 ####14. Timeline on left-hand side, using Google sentiment. Interaction term between Google and high-low impact. Environmental memberships variable added. N/A scores coded as 0
-reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen_Memb)
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
 
 summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
