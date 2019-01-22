@@ -82,19 +82,17 @@ home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
 # Ventyx_dataset <- read_csv(file = "G:/Data/VENTYX_DATASET/ventyx_converted_11_27_2018_PopDensity_Income_Viewshed_lowhighimpact_doc_names.csv") %>% 
 #   filter(!is.na(lr_tif))
 
-Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")) %>% filter(!is.na(lr_tif))
+Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_with_NU_google_Sentiments_01.18.19.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score))
 Ventyx_dataset$Household_MedianIncome <- as.numeric(Ventyx_dataset$Household_MedianIncome)
 
 
-                            
-  
 View(Ventyx_dataset)
 
 dim(Ventyx_dataset)
 
 ```
 
-Total number of projects recorded: 902
+Total number of projects recorded (minus all NAs, negative capacity, 0 timeline days): 896
 
 ```{r phase_date}
 
@@ -129,7 +127,7 @@ length(Ventyx_dataset$lr_tif[Ventyx_dataset$lr_tif == 1])
 
 # Low impact area by state:
 ventyx_lowimpact <- Ventyx_dataset %>% 
-  filter(lr_tif == 1) %>% 
+  filter(H_L_W == "Low") %>% 
   group_by(State) %>% 
   summarise(count=n())
 
@@ -137,7 +135,7 @@ sum(ventyx_lowimpact$count) # verifying all low impact areas are somewhere
 
 
 ventyx_nonlowimpact <- Ventyx_dataset %>% 
-  filter(lr_tif == 0) %>% 
+  filter(H_L_W == "High") %>% 
   group_by(State) %>% 
   summarise(count=n())
 
@@ -156,14 +154,16 @@ View(ventyx_nonlowimpact)
 # By State:
  
  ByState <- Ventyx_dataset %>%
-   select(ProjectName, ProjectDeveloper, State, lr_tif, Capacity, TimelineDays) %>% 
+   select(ProjectName, NU_Sentiment, Google_Sentiment, ProjectDeveloper, State, H_L_W, Capacity, TimelineDays) %>% 
    group_by(State) %>% 
-   mutate(LowImpact = sum(lr_tif == 1)) %>% 
-   mutate(NonLowImpact = sum (lr_tif == 0)) %>% 
-   mutate(TotalProjects = sum(lr_tif == 1 | lr_tif == 0)) %>%
+   mutate(LowImpact = sum(H_L_W == "Low")) %>% 
+   mutate(NonLowImpact = sum (H_L_W == "High")) %>% 
+   mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
+   mutate(AvgNexisSentiment = mean(NU_Sentiment)) %>% 
+   mutate(AvgGoogleSentiment = mean(Google_Sentiment)) %>% 
    mutate(AvgCapacity = mean(Capacity)) %>% 
    mutate(AvgTimeline = mean(TimelineDays)) %>% 
-   select(State,LowImpact, NonLowImpact, TotalProjects, AvgCapacity, AvgTimeline) %>% 
+   select(State,LowImpact, NonLowImpact, TotalProjects, AvgNexisSentiment, AvgGoogleSentiment, AvgCapacity, AvgTimeline) %>% 
    # Need to add column for sentiment
    unique()
  
@@ -176,24 +176,99 @@ kable(ByState)
 ## By Impact:
 
 ByImpact <- Ventyx_dataset %>%
-   select(ProjectName, ProjectDeveloper, State, lr_tif, Capacity, TimelineDays, Household_MedianIncome, View_Score) %>% 
-   group_by(lr_tif) %>% 
-   mutate(TotalProjects = sum(lr_tif == 1 | lr_tif == 0)) %>%
-   mutate(AvgCapacity = mean(Capacity)) %>% 
+   select(ProjectName, ProjectDeveloper, State, H_L_W, Capacity, TimelineDays, Household_MedianIncome, View_Score, NU_Sentiment, Google_Sentiment) %>% 
+  group_by(H_L_W) %>% 
+  mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
   mutate(AvgTimeline = mean(TimelineDays)) %>%
+  mutate(AvgNexisSentiment = mean(NU_Sentiment)) %>% 
+  mutate(AvgGoogleSentiment = mean(Google_Sentiment)) %>%
+  mutate(MaxNexisSentiment = max(NU_Sentiment)) %>% 
+  mutate(MinNexisSentiment = min(NU_Sentiment)) %>% 
+  mutate(MaxGoogleSentiment = max(Google_Sentiment)) %>% 
+  mutate(MinGoogleSentiment = min(Google_Sentiment)) %>% 
+  mutate(AvgCapacity = mean(Capacity)) %>% 
   mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
   mutate(Avg_Viewscore = mean(View_Score)) %>% 
-   select(TotalProjects, AvgCapacity, AvgTimeline, AvgMedianIncome, Avg_Viewscore) %>% 
-   # Need to add column for sentiment
+  select(TotalProjects, AvgTimeline, AvgNexisSentiment, MaxNexisSentiment, MinNexisSentiment, AvgGoogleSentiment, MaxGoogleSentiment, MinGoogleSentiment, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
    unique()
+
+#Box and whisker plot by impact for sentiment?
 
 View(ByImpact)
 
 kable(ByImpact)
+
+print(ByImpact)
+
+
+NUSen_nozeros <- Ventyx_dataset %>% 
+  filter(Ventyx_dataset$NU_Sentiment != 0)
+GoogleSen_nozeros <- Ventyx_dataset %>% 
+  filter(Ventyx_dataset$Google_Sentiment !=0)
+
+dim(NUSen_nozeros)
+dim(GoogleSen_nozeros)
+
+
+ImpactNUSentimentPlot <- ggplot(NUSen_nozeros, aes(x=as.factor(H_L_W), y = NU_Sentiment))+
+  geom_boxplot(fill="slateblue", alpha = 0.2)+
+  xlab("H_L_W")
+
+ImpactGoogleSentimentPlot <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment))+
+  geom_boxplot(fill="slateblue", alpha = 0.2)+
+  xlab("H_L_W")
+
+plot(ImpactNUSentimentPlot)
+plot(ImpactGoogleSentimentPlot)
+
  
 
 ```
 
+```{r}
+
+# By Sentiment:
+
+Ventyx_dataset <- Ventyx_dataset %>% 
+mutate(NU_class =
+           ifelse(NU_Sentiment>0, "Positive",
+                  ifelse(NU_Sentiment==0, "Neutral/No Publicity",
+                         "Negative"))) %>% 
+mutate(Google_class =
+           ifelse(Google_Sentiment>0, "Positive",
+                  ifelse(Google_Sentiment==0, "Neutral/No Publicity",
+                         "Negative")))
+
+ByNUSentiment <- Ventyx_dataset %>% 
+  group_by(NU_class) %>% 
+  mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
+  mutate(AvgTimeline = mean(TimelineDays)) %>%
+  mutate(LowImpact = sum(H_L_W == "Low")) %>% 
+  mutate(HighImpact = sum(H_L_W=="High")) %>%
+  mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
+  mutate(Avg_Viewscore = mean(View_Score)) %>% 
+  select(TotalProjects, AvgTimeline, LowImpact, HighImpact, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
+   unique()
+
+
+ByGoogleSentiment <- Ventyx_dataset %>% 
+  group_by(Google_class) %>% 
+  mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
+  mutate(AvgTimeline = mean(TimelineDays)) %>%
+  mutate(LowImpact = sum(H_L_W == "Low")) %>% 
+  mutate(HighImpact = sum(H_L_W=="High")) %>%
+  mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
+  mutate(Avg_Viewscore = mean(View_Score)) %>% 
+  select(TotalProjects, AvgTimeline, LowImpact, HighImpact, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
+   unique()
+
+kable(ByNUSentiment)
+kable(ByGoogleSentiment)
+  
+
+```
 
 
 Stats on developers
