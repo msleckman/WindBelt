@@ -672,7 +672,7 @@ dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
 reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_google_Sen)
 
 summary(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, order_vars = c("View_score, Google_Sentiment"))+
+dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
     theme_bw()+
   labs(x = "timeline")
  
@@ -688,39 +688,52 @@ dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, order_vars = c("V
 
 #### NU and Google 
 ```{r R5}
-####5. All variables included -- using both NU and Google scores. N/A scores coded as "0".
+
+####5. All variables included -- using both NU and Google scores. N/A scores coded as "0":
+
 reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)
 
-reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State$terms
+# reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State$terms
 
-filtered_r5 <- tidy(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State) %>% 
-  filter(term != "View_Score")
+renamed_variables <- c(View_Score = "View Score",
+                        Google_Sentiment = "Google News Publicity score",
+                        NU_Sentiment = "Nexis Uni Publicity score",
+                        PopDensity_mi = "Population Density per m2",
+                        Household_MedianIncome = "Household Median Income",
+                        Capacity = "Capacity",
+                        H_L_WLow = "High vs. low impact area")
+
+
+# everything 
+dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick", lwd=0.5))+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+    theme_classic()+
+  labs(x = "timeline")+
+    ggtitle("Regression output: all variables, including NU and Google scores. N/A \n scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+
+
+regression1 <- tidy(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)
+
+dwplot(regression1[!grepl("^State*", regression1$term),] %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick", lwd = 0.5)
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables, including NU and Google scores. N/A \n scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
   
-summary(filtered_r5)
-
-dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State)+
-  theme_bw()+
-  labs(x = "timeline", y = "")+
-  geom_vline(xintercept = 0, colour = "grey60", linetype = 2)
-
-+ # plot line at zero _behind_ coefs
-  relabel_predictors(c(View_Score = "view Score",
-                       google_Sentiment = "GOogle News Publicity score",
-                       NU_Sentiment = "Nexis Uni Publicity score",
-                       PopDensity_mi = "Population Density per m2",
-                       Household_MedianIncome = "Household Median Income",
-                       Capacity = "Capacity",
-                       H_L_WLow = "High vs. low impact area"))
-     # geom_vline(xintercept = 0, colour = "grey60", linetype = 2)
 
 #Results: significance found in Google sentiment (0.02867) and capacity (0.09094)
 #H_L_W p-value: 0.91039
 #NU_Sentiment: 0.57313
 ####
 ## 01/20/18 - MS: with additional text, got more significance on some values it seems 
-reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State$terms
 
 ```
 
@@ -731,9 +744,25 @@ reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ Vie
 
 summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)
 
-dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)+
+dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
     theme_bw()+
   labs(x = "timeline")
+
+regression2 <- tidy(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)
+
+dwplot(regression2[!grepl("^State*", regression2$term),] %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick")
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables, using only NU scores. N/A \n scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+  
+
 #Results: significance found in capacity (0.07004)
 #NU_Sentiment: 0.986
 #H_L_W: 0.856
@@ -759,10 +788,30 @@ reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays
 reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)
-dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
-  theme_bw()+
-  labs(x = "timeline")
-  
+
+## everything
+dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
+    theme_bw()+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  labs(x = "Timeline (days)")
+
+regression3 <- tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)
+
+# Main variables
+dwplot(regression3[!grepl("^State*", regression3$term),] %>%  
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick")
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables, using only Google scores. N/A \n scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+
+
+
+
 #Results: significance found in Google sentiment (0.02972) and capacity (0.08989)
 #H_L_W: 0.93917
 #
@@ -781,9 +830,56 @@ R1 <- reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State
 R2 <- reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State
 R3 <- reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State
 
-dwplot(list(R1,R2, R3))+
-  theme_classic()
-  labs(x="timeline")
+# general_everything plot
+
+unique(regression1$term)
+
+dwplot(list(tidy(R1),tidy(R2),tidy(R3), conf.int = FALSE)
+       # dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick")
+       )+
+    theme_bw()+
+  labs(x = "timeline")
+
+
+
+### does not work unless subset by regression 
+regression1_1 <- tidy(R1)  %>% 
+  filter(!grepl('^State*', term)) %>% 
+  mutate(model = "regression1_G+NU")
+
+regression2_1 <- tidy(R2)  %>% 
+  filter(!grepl('^State*', term)) %>% 
+  mutate(model = "regression2_NU")
+
+regression3_1 <- tidy(R3)  %>% 
+  filter(!grepl('^State*', term)) %>% 
+  mutate(model = "regression3_G")
+
+combined_reg <-  bind_rows(regression1_1, regression2_1, regression3_1)
+View(combined_reg)
+
+
+dwplot(combined_reg %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(aes(shape = model)),
+   whisker_args = list(aes(colour = model))
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "grey80", linetype = 2)+
+  theme_classic()+
+  ggtitle("Combined regression outputs;\n N/A scores coded as 0:")+
+  theme(plot.title = element_text(face="bold"),
+          legend.position = c(0.65, 0.8),
+          legend.justification = c(0, 0),
+          legend.background = element_rect(colour = "grey60"),
+          legend.title.align = .5)
+  
+
+
+install.packages("jtools")
+library(jtools)
+plot_summs(tidy(R1), scale = TRUE, plot.distributions = TRUE, inner_ci_level = .9)
+
 
 ```
 
@@ -793,14 +889,34 @@ dwplot(list(R1,R2, R3))+
 
 #### NU only 
 ```{r R7}
+
 ####7. All variables included -- using only NU scores and an interaction between high-low and NU sentiment. N/A scores coded as "0".
 reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
-  theme_bw()+
-  labs(x = "timeline")
+# dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+#   theme_bw()+
+#   labs(x = "timeline")+
+  
 
+dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+    theme_bw()+
+  labs(x = "timeline (days)")
+
+regression2 <- tidy(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+dwplot(regression2[!grepl("^State*", regression2$term),] %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick")
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables, using only NU scores\n and interaction term. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+  
 #Results: significance found in capacity (0.07323)
 #NU_Sentiment: 0.505
 #H_L_W: 0.643
@@ -824,9 +940,31 @@ reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 
-dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
-  theme_bw()+
-  labs(x = "timeline")
+# dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+#   theme_bw()+
+#   labs(x = "timeline")
+
+
+## everything
+dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
+    theme_bw()+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  labs(x = "Timeline (days)")
+
+regression3 <- tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+# Main variables
+dwplot(regression3[!grepl("^State*", regression3$term),] %>%  
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick")
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables, using only Google scores \n and interaction term. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+
 
 #Results: significance found in Google sentiment (0.01327) and capacity (0.09445)
 #H_L_W: 0.63589
@@ -852,6 +990,42 @@ dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
   theme_bw()+
   labs(x = "timeline")
 
+
+# reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State$terms
+
+renamed_variables <- c(View_Score = "View Score",
+                        Google_Sentiment = "Google News Publicity score",
+                        NU_Sentiment = "Nexis Uni Publicity score",
+                        PopDensity_mi = "Population Density per m2",
+                        Household_MedianIncome = "Household Median Income",
+                        Capacity = "Capacity",
+                        H_L_WLow = "High vs. low impact area")
+
+
+# everything 
+dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick", lwd=0.5))+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+    theme_classic()+
+  labs(x = "timeline(days)")+
+    ggtitle("Regression output: all variables, including NU and Google \n scores. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+
+
+regression1 <- tidy(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+dwplot(regression1[!grepl("^State*", regression1$term),] %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick", lwd = 0.5)
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+
+
+
 #Results: significance found in Google sentiment (0.0067)
 #NU_Sentiment: 0.196
 #H_L_W: 0.804
@@ -868,6 +1042,60 @@ dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
 
 ```
 
+```{r combined_with_interaction term}
+
+
+R1 <- reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State_Inter
+R2 <- reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter
+R3 <- reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter
+
+# general_everything plot
+
+# unique(regression1$term)
+
+# dwplot(list(tidy(R1),tidy(R2),tidy(R3), conf.int = FALSE)
+#        # dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick")
+#        )+
+#     theme_bw()+
+#   labs(x = "timeline")
+
+
+### does not work unless subset by regression 
+regression1_1 <- tidy(R1)  %>% 
+  filter(!grepl('^State*', term)) %>% 
+  mutate(model = "regression1_G+NU")
+
+regression2_1 <- tidy(R2)  %>% 
+  filter(!grepl('^State*', term)) %>% 
+  mutate(model = "regression2_NU")
+
+regression3_1 <- tidy(R3)  %>% 
+  filter(!grepl('^State*', term)) %>% 
+  mutate(model = "regression3_G")
+
+combined_reg <-  bind_rows(regression1_1, regression2_1, regression3_1)
+# View(combined_reg)
+
+
+dwplot(combined_reg %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(aes(shape = model)),
+   whisker_args = list(aes(colour = model))
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "grey80", linetype = 2)+
+  theme_classic()+
+  ggtitle("Combined regression outputs with interaction term:\n N/A scores coded as 0:\n")+
+  theme(plot.title = element_text(face="bold"),
+          legend.position = c(0.7, 0.77),
+          legend.justification = c(0, 0),
+          legend.background = element_rect(colour = "grey60"),
+          legend.title.align = .5)
+  
+
+
+
+```
 
 ### Sentiment on left hand side - NAs still coded as '0'
 
@@ -881,6 +1109,22 @@ summary(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)
 dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)+
   theme_bw()+
   labs(x = "sentiment")
+
+regressionA <- tidy(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State)
+
+dwplot(regressionA[!grepl("^State*", regressionA$term),] %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick", lwd = 0.5)
+   )+
+  labs(x = "Sentiment score", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+
+
+
 
 #Results: significance found in H_L_W (0.0273)
 ####
@@ -896,9 +1140,25 @@ reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(Google_Sentiment ~ View_Score
 
 summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
 
-dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)+
-  theme_bw()+
-  labs(x = "timeline")
+# dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)+
+#   theme_bw()+
+#   labs(x = "timeline")
+# 
+
+regressionB <- tidy(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State)
+
+dwplot(regressionB[!grepl("^State*", regressionB$term),] %>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick", lwd = 0.5)
+   )+
+  labs(x = "Sentiment score", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+
+
 
 #Results no significance found
 #H_L_W: 0.154
