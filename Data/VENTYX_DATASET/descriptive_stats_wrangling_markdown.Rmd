@@ -159,11 +159,11 @@ View(ventyx_nonlowimpact)
    mutate(LowImpact = sum(H_L_W == "Low")) %>% 
    mutate(NonLowImpact = sum (H_L_W == "High")) %>% 
    mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
-   mutate(AvgNexisSentiment = mean(NU_Sentiment)) %>% 
+   #mutate(AvgNexisSentiment = mean(NU_Sentiment)) %>% 
    mutate(AvgGoogleSentiment = mean(Google_Sentiment)) %>% 
    mutate(AvgCapacity = mean(Capacity)) %>% 
    mutate(AvgTimeline = mean(TimelineDays)) %>% 
-   select(State,LowImpact, NonLowImpact, TotalProjects, AvgNexisSentiment, AvgGoogleSentiment, AvgCapacity, AvgTimeline) %>% 
+   select(State,LowImpact, NonLowImpact, TotalProjects, AvgGoogleSentiment, AvgCapacity, AvgTimeline) %>% 
    # Need to add column for sentiment
    unique()
  
@@ -180,16 +180,17 @@ ByImpact <- Ventyx_dataset %>%
   group_by(H_L_W) %>% 
   mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
   mutate(AvgTimeline = mean(TimelineDays)) %>%
-  mutate(AvgNexisSentiment = mean(NU_Sentiment)) %>% 
+  #mutate(AvgNexisSentiment = mean(NU_Sentiment)) %>% 
   mutate(AvgGoogleSentiment = mean(Google_Sentiment)) %>%
-  mutate(MaxNexisSentiment = max(NU_Sentiment)) %>% 
-  mutate(MinNexisSentiment = min(NU_Sentiment)) %>% 
+  #mutate(MaxNexisSentiment = max(NU_Sentiment)) %>% 
+  #mutate(MinNexisSentiment = min(NU_Sentiment)) %>% 
   mutate(MaxGoogleSentiment = max(Google_Sentiment)) %>% 
   mutate(MinGoogleSentiment = min(Google_Sentiment)) %>% 
   mutate(AvgCapacity = mean(Capacity)) %>% 
   mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
   mutate(Avg_Viewscore = mean(View_Score)) %>% 
-  select(TotalProjects, AvgTimeline, AvgNexisSentiment, MaxNexisSentiment, MinNexisSentiment, AvgGoogleSentiment, MaxGoogleSentiment, MinGoogleSentiment, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
+  select(TotalProjects, AvgTimeline,
+         AvgGoogleSentiment, MaxGoogleSentiment, MinGoogleSentiment, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
    unique()
 
 #Box and whisker plot by impact for sentiment?
@@ -314,6 +315,94 @@ View(Impact_by_developer)
 kable(Impact_by_developer)
 
 ```
+
+```{r}
+
+sen_delay_plot <- ggplot(Ventyx_dataset, aes(x = TimelineDays, y = Google_Sentiment, color = H_L_W)) +
+  geom_point()
+
+sen_delay_plot
+
+
+
+```
+
+
+
+```{r}
+
+#t test between sentiment in high and sentiment in low
+# is there a difference (two direction)
+
+## Test assumptions
+
+# sen_hist <- ggplot(Ventyx_dataset, aes(Google_Sentiment)) +
+#   geom_histogram(bins=15) +
+#   facet_wrap(~H_L_W, scale = "free")
+# 
+# sen_hist
+
+#NOPE, having zeros makes it weird distribution (does this matter? should we test with or without 0s?)
+
+Ventyx_nozeros <- Ventyx_dataset %>% 
+  filter(Ventyx_dataset$Google_Sentiment!=0)
+
+sen_hist <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
+  geom_histogram(bins=15) +
+  facet_wrap(~H_L_W, scale = "free")
+
+sen_hist
+
+sen_qq <- ggplot(Ventyx_nozeros, aes(sample = Google_Sentiment)) +
+  geom_qq() +
+  facet_wrap(~H_L_W, scale = "free")
+
+sen_qq
+
+sen_ftest <- var.test(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
+
+#Ratio of variances is not 1 (unequal variances)
+
+sen_ttest <- t.test(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
+
+sen_ttest
+#Did not differ significantly (p = 0.58)
+
+
+```
+
+```{r}
+
+# t test between delay in high and delay in low
+# is there a difference (two direction)
+
+delay_hist <- ggplot(Ventyx_dataset, aes(TimelineDays)) +
+  geom_histogram(bins=15) +
+  facet_wrap(~H_L_W, scale = "free")
+
+delay_hist
+
+delay_qq <- ggplot(Ventyx_dataset, aes(sample = TimelineDays)) +
+  geom_qq() +
+  facet_wrap(~H_L_W, scale = "free")
+
+delay_qq
+
+##Not normal but lots of sample points
+
+delay_ftest <- var.test(TimelineDays ~ H_L_W, data = Ventyx_dataset)
+
+#Ratio of variances is not 1 (unequal variances)
+
+delay_ttest <- t.test(TimelineDays ~ H_L_W, data = Ventyx_dataset)
+
+delay_ttest
+
+# p = 0.99
+
+```
+
+
 
 stats on average timeline 
 ```{r timelines}
