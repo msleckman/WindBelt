@@ -154,6 +154,8 @@ google_df <- read_csv("~/Desktop/google_scraping_01-08-19.csv")
 
 #To view the dataset:
 #View(google_df)
+
+
 ```
 
 
@@ -199,6 +201,7 @@ projects_google <- data_frame(document = google_df$ProjectName, text = google_df
 
 #### Split text by page (only NU)
 ```{r page_split_aggregate}
+
 #Dataset with each page in one row
 project_pdfpages_NU <- projects_NU %>% 
   unnest() # splits pdf text by page and removes list format ( c("")) since each element is now its own row.
@@ -269,7 +272,6 @@ projects_words_google <- projects_google %>%
 head(projects_words_google)
 
 ```
-
 
 #### Group words by pdf/project and summarize by frequency
 ```{r group_by}
@@ -375,8 +377,8 @@ total_sentiment_NU <- projects_score_bind_NU %>%
   summarise(totals = mean(score))
   
 #View(total_sentiment_with_stats_NU)
-View(total_sentiment_NU)
-length(unique(total_sentiment_NU$document)) # --> 349
+# View(total_sentiment_NU)
+length(unique(total_sentiment_NU$document)) # --> 372
 
 #### Google #####
 total_sentiment_with_stats_google <- projects_score_bind_google %>% 
@@ -441,6 +443,7 @@ ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all
 # ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE) #old
 
 #Rename "totals" column
+
 ventyx_df_NU_Sen <- rename(ventyx_df_NU_Sen, NU_Sentiment=totals)
 
 # View(ventyx_df_NU_Sen)
@@ -587,7 +590,9 @@ ventyx_df_google_Sen$Sign_Google <- as.factor(ventyx_df_google_Sen$Sign_Google)
 
 #summary(ventyx_df_google_Sen)
 
-#### Combined ####
+#### Combined #### 
+
+
 ventyx_df_NU_google_Sen$H_L_W <- as.factor(ventyx_df_NU_google_Sen$H_L_W)
 
 ventyx_df_NU_google_Sen$PopDensity_mi <- as.numeric(ventyx_df_NU_google_Sen$PopDensity_mi)
@@ -605,17 +610,39 @@ ventyx_df_NU_google_Sen$Sign_NU <- as.factor(ventyx_df_NU_google_Sen$Sign_NU)
 str(ventyx_df_NU_google_Sen)
 
 summary(ventyx_df_NU_google_Sen)
-```
 
+### adding normalization to df 
+
+
+sd(ventyx_df_google_Sen$Capacity)
+mean(ventyx_df_google_Sen$Capacity, na.rm = T)
+?mean()
+
+class(ventyx_df_google_Sen$Capacity)
+
+View(ventyx_df_google_Sen)
+
+ventyx_df_google_Sen <- ventyx_df_google_Sen %>% 
+  mutate(Capacity_norm_2 = (Capacity - mean(Capacity, na.rm = T))/sd(Capacity, na.rm = T))
+
+```
 
 ####Run Regressions
 ```{r R1}
 
+require(broom)
+# install.packages("dotwhisker")
+library(dotwhisker)
 
-install.packages("tidy")
+ventyx_df_NU_Sen$Capacity_1 <- scale(ventyx_df_NU_Sen$Capacity)
+
+View(ventyx_df_NU_Sen)
 ####1. All variables included -- using NU sentiment scores. N/A scores removed from dataset.
 reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_Sen)
 print(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
+
+
+
 
 #Plotting residuals. This should be repeated for the other regressions.
 r1 <- resid(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
@@ -624,14 +651,15 @@ plot(r1)
 summary(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
 require(ggplot2)
 
+View(tidy(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State))
 
-install.packages("dotwhisker")
-require(dotwhisker)
-dwplot(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
+dwplot(tidy(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State))
+
 #Results: significance found in household median income (0.00358) and capacity (0.00582). 
 #NU sentiment p-value: 0.22164
 #H_L_W p-value: 0.62724
 ####
+
 ```
 
 
@@ -641,13 +669,14 @@ dwplot(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State)
 reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_Sen)
 
 summary(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+dwplot(tidy(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter))+
     theme_bw()+
   labs(x = "timeline")
  
-#Results: significance found in household median income (0.002891) and capacity (0.004197) and H_L_W (0.04786) and the interaction term (0.03391)
+# Results: significance found in household median income (0.002891) and capacity (0.004197) and H_L_W (0.04786) and the interaction term (0.03391)
 #NU sentiment p-value: 0.82485
 ####
+
 ```
 
 ```{r R3}
@@ -656,7 +685,7 @@ dwplot(reg_TLD_VS_Sen_PopDen_MedianIncome_Cap_HL_State_Inter)+
 reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_google_Sen)
 
 summary(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State)
-dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
+dwplot(tidy(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State))+
   theme_bw()+
   labs(x = "timeline")
  
@@ -672,7 +701,7 @@ dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State)+
 reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_google_Sen)
 
 summary(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+dwplot(tidy(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter))+
     theme_bw()+
   labs(x = "timeline")
  
@@ -680,7 +709,8 @@ dwplot(reg_TLD_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
 #Google sentiment p-value: 0.1021
 #H_L_W p-value: 0.97
 #Interaction: 0.48
-####
+#
+
 ```
 
 
@@ -707,7 +737,7 @@ renamed_variables <- c(View_Score = "View Score",
 
 
 # everything 
-dwplot(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick", lwd=0.5))+
+dwplot(tidy(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State), dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick", lwd=0.5))+
   ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
     theme_classic()+
   labs(x = "timeline")+
@@ -790,12 +820,13 @@ reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ Vie
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)
 
 ## everything
-dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
+dwplot(tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State), dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
     theme_bw()+
   ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
   labs(x = "Timeline (days)")
 
-regression3 <- tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State)
+regression3 <- tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State) %>% 
+  mutate()
 
 # Main variables
 dwplot(regression3[!grepl("^State*", regression3$term),] %>%  
@@ -808,8 +839,6 @@ dwplot(regression3[!grepl("^State*", regression3$term),] %>%
   theme_classic()+
   ggtitle("Regression output: all variables, using only Google scores. N/A \n scores coded as 0:")+
   theme(legend.background = element_rect(colour="grey80"))
-
-
 
 
 #Results: significance found in Google sentiment (0.02972) and capacity (0.08989)
@@ -832,13 +861,13 @@ R3 <- reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State
 
 # general_everything plot
 
-unique(regression1$term)
-
-dwplot(list(tidy(R1),tidy(R2),tidy(R3), conf.int = FALSE)
-       # dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick")
-       )+
-    theme_bw()+
-  labs(x = "timeline")
+# unique(regression1$term)
+# 
+# dwplot(list(tidy(R1),tidy(R2),tidy(R3), conf.int = FALSE)
+#        # dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick")
+#        )+
+#     theme_bw()+
+#   labs(x = "timeline")
 
 
 
@@ -876,10 +905,10 @@ dwplot(combined_reg %>%
   
 
 
-install.packages("jtools")
-library(jtools)
-plot_summs(tidy(R1), scale = TRUE, plot.distributions = TRUE, inner_ci_level = .9)
-
+# install.packages("jtools")
+# library(jtools)
+# plot_summs(tidy(R1), scale = TRUE, plot.distributions = TRUE, inner_ci_level = .9)
+#  coefplot()
 
 ```
 
