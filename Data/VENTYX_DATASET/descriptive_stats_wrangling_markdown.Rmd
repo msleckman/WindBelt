@@ -29,6 +29,8 @@ library(knitr)
 
 library(googledrive)
 
+library(effsize)
+
 ```
 
 To pull ventyx dataset from google drive directly
@@ -176,7 +178,7 @@ kable(ByState)
 ## By Impact:
 
 ByImpact <- Ventyx_dataset %>%
-   select(ProjectName, ProjectDeveloper, State, H_L_W, Capacity, TimelineDays, Household_MedianIncome, View_Score, NU_Sentiment, Google_Sentiment) %>% 
+   select(ProjectName, ProjectDeveloper, State, H_L_W, Capacity, TimelineDays, Household_MedianIncome, View_Score, NU_Sentiment, Google_Sentiment, PopDensity_mi) %>% 
   group_by(H_L_W) %>% 
   mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
   mutate(AvgTimeline = mean(TimelineDays)) %>%
@@ -189,8 +191,9 @@ ByImpact <- Ventyx_dataset %>%
   mutate(AvgCapacity = mean(Capacity)) %>% 
   mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
   mutate(Avg_Viewscore = mean(View_Score)) %>% 
+  mutate(Avg_PopDensity = mean(PopDensity_mi)) %>% 
   select(TotalProjects, AvgTimeline,
-         AvgGoogleSentiment, MaxGoogleSentiment, MinGoogleSentiment, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
+         AvgGoogleSentiment, MaxGoogleSentiment, MinGoogleSentiment, AvgCapacity,  AvgMedianIncome, Avg_Viewscore, Avg_PopDensity) %>% 
    unique()
 
 #Box and whisker plot by impact for sentiment?
@@ -221,6 +224,8 @@ ImpactGoogleSentimentPlot <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y
 
 plot(ImpactNUSentimentPlot)
 plot(ImpactGoogleSentimentPlot)
+
+mean(Ventyx_dataset$TimelineDays)
 
  
 
@@ -347,11 +352,24 @@ sen_delay_plot
 Ventyx_nozeros <- Ventyx_dataset %>% 
   filter(Ventyx_dataset$Google_Sentiment!=0)
 
+dim(Ventyx_nozeros)
+
+summary_nozeros <- Ventyx_nozeros %>% 
+  group_by(H_L_W) %>% 
+  summarise(no_rows=length(H_L_W))
+
 sen_hist <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
   geom_histogram(bins=15) +
   facet_wrap(~H_L_W, scale = "free")
 
 sen_hist
+
+## Make a prettier histogram
+
+sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment, fill = H_L_W)) +
+  geom_histogram(alpha = 0.5, position = "identity", bins=15)
+
+sen_hist_comb
 
 sen_qq <- ggplot(Ventyx_nozeros, aes(sample = Google_Sentiment)) +
   geom_qq() +
@@ -367,6 +385,8 @@ sen_ttest <- t.test(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
 
 sen_ttest
 #Did not differ significantly (p = 0.58)
+
+effect_sen <- cohen.d(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
 
 
 ```
@@ -398,6 +418,8 @@ delay_ttest <- t.test(TimelineDays ~ H_L_W, data = Ventyx_dataset)
 
 delay_ttest
 
+
+
 # p = 0.99
 
 ```
@@ -426,6 +448,25 @@ stats on average timeline
 # mean(all_ventyx_nonlowimpact$TimelineDays)
 # max(all_ventyx_nonlowimpact$TimelineDays)
 # min(all_ventyx_nonlowimpact$TimelineDays)
+
+
+```
+
+```{r}
+
+#Normalize pop density, median income, viewscore, capacity, timeline days, Google Sentiment
+
+ventyx_normal <- Ventyx_dataset %>% 
+  mutate(PopDensity_mi_norm = ((((PopDensity_mi - min(PopDensity_mi)) * (100 - 1)) / (max(PopDensity_mi) - min(PopDensity_mi)))) + 1) %>% 
+  mutate(Household_MedianIncome_norm = ((((Household_MedianIncome - min(Household_MedianIncome)) * (100 - 1)) / (max(Household_MedianIncome) - min(Household_MedianIncome)))) + 1) %>% 
+  mutate(View_Score_norm = ((((View_Score - min(View_Score)) * (100 - 1)) / (max(View_Score) - min(View_Score)))) + 1) %>% 
+  mutate(Capacity_norm = ((((Capacity - min(Capacity)) * (100 - 1)) / (max(Capacity) - min(Capacity)))) + 1) %>% 
+  mutate(TimelineDays_norm = ((((TimelineDays - min(TimelineDays)) * (100 - 1)) / (max(TimelineDays) - min(TimelineDays)))) + 1) %>% 
+  mutate(Google_Sentiment_norm = ((((Google_Sentiment - min(Google_Sentiment)) * (100 - 1)) / (max(Google_Sentiment) - min(Google_Sentiment)))) + 1)
+  
+  
+         
+View(ventyx_normal)
 
 
 ```
