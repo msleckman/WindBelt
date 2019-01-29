@@ -218,11 +218,16 @@ ImpactNUSentimentPlot <- ggplot(NUSen_nozeros, aes(x=as.factor(H_L_W), y = NU_Se
   geom_boxplot(fill="slateblue", alpha = 0.2)+
   xlab("H_L_W")
 
-ImpactGoogleSentimentPlot <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment))+
-  geom_boxplot(fill="slateblue", alpha = 0.2)+
-  xlab("H_L_W")
+ImpactGoogleSentimentPlot <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment, fill = H_L_W))+
+  geom_boxplot()+
+  xlab("Impact")+
+  ylab("Publicity Score")+
+  theme_classic()+
+  theme(axis.title.x=element_blank(), text = element_text(size = 20))+
+  guides(fill=FALSE)+
+  scale_x_discrete(labels = c("Other", "Low"))
+    
 
-plot(ImpactNUSentimentPlot)
 plot(ImpactGoogleSentimentPlot)
 
 mean(Ventyx_dataset$TimelineDays)
@@ -366,10 +371,22 @@ sen_hist
 
 ## Make a prettier histogram
 
-sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment, fill = H_L_W)) +
-  geom_histogram(alpha = 0.5, position = "identity", bins=15)
+sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
+  geom_histogram(alpha = 0.5, bins=15, fill = "Blue") +
+  xlab("Publicity Score")+
+  ylab("Frequency")+
+  theme_classic()+
+  theme(text=element_text(size = 20))
+  
 
 sen_hist_comb
+
+xlab("Impact")+
+  ylab("Google Sentiment")+
+  theme_classic()+
+  theme(axis.title.x=element_blank(), text = element_text(size = 20))+
+  guides(fill=FALSE)+
+  scale_x_discrete(labels = c("Other", "Low"))
 
 sen_qq <- ggplot(Ventyx_nozeros, aes(sample = Google_Sentiment)) +
   geom_qq() +
