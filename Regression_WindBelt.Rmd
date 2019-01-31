@@ -64,6 +64,7 @@ library(knitr)
 library(readr)
 library(stringr)
 library(gsubfn)
+library(sjPlot)
 # install.packages("tidyverse")
 # install.packages("tidytext")
 # library(tm.plugin.lexisnexis)
@@ -90,7 +91,7 @@ library(sjPlot)
 # If working on a Bren computer, use this:
 NU_PDFS_R <- "H:/Desktop/NU_PDFS_R"
 
-# Alex's Directory:
+#Alex's Directory:
 #NU_PDFS_R <- "C:/Users/airvi/Documents/Bren/GroupProject/NU_PDFS_R"
 
 dir.create(NU_PDFS_R, showWarnings = TRUE) # if directory already exists, will give warning. Ignore.
@@ -987,6 +988,11 @@ dwplot(regression1[!grepl("^State*", regression1$term),] %>%
 ```{r R6}
 ####6. All variables included -- using only NU scores. N/A scores coded as "0".
 reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
+ 
+#Covariance
+vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+#Plot of marginal effect of interaction term. Can use mdrt.values = "minmax" to show max and min value
+plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, type = "int", mdrt.values = "meansd") + theme_bw() + xlab("Habitat Impact") + ylab("Timeline (days)\n") + ggtitle("Marginal Effect of Interaction Term")
 
 summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State)
 
@@ -1215,6 +1221,24 @@ plot_model(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter, type 
 #Is the sum of alpha 1 (google sentiment) and alpha 3 (interaction term) different than zero
 #restricted vs unrestricted model. 
 
+```
+
+```{r R14}
+####14. Timeline on left-hand side, using Google sentiment. Interaction term between Google and high-low impact. Environmental memberships variable added. N/A scores coded as 0
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
+
+```
+
+```{r marginal_effects}
+#Marginal effects of regression 14
+
+#Covariance
+vcov(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+#Plot of marginal effect of interaction term. Can use mdrt.values = "minmax" to show max and min value
+plot_model(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter, type = "int", mdrt.values = "meansd") + theme_bw() + xlab("Habitat Impact") + ylab("Timeline (days)\n") + ggtitle("Marginal Effect of Interaction Term")
+#Can use the scale function to "mean-center" the data
+#Is the sum of alpha 1 (google sentiment) and alpha 3 (interaction term) different than zero
+#restricted vs unrestricted model. 
 ```
 
 
