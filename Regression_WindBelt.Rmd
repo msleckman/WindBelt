@@ -9,15 +9,26 @@ output: Word Document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#### Initial read in files: 
+Main:
+1. Ventyx dataset: variables included: "ProjectName", "ProjectDeveloper", "ProjectOwner", "State", "County", "State_County", "County, State", "PopDensity_mi"          "Household_MeanIncome", "Household_MedianIncome",  "View_Score", "Latitude", "Longitude", "Capacity", "CurrentPhase", "ArtificialEnd", "TimelineDays", "lr_tif" (low risk areas)         "document" (pdf associated), "H_L_W" (whether in high or low risk area - essentially lr_tif in binary form)
+2. NU_pdf_text: variables includes 'document' ("projectname_developer_numberofNUarticles.pdf") and 'text' (as a string based on pages)
+3. google_df: "PDFName" ("projectname_developer_numberofNUarticles.pdf"), "ProjectName", "ProjectDeveloper", "State", "NegativeWordCount", "FullText"      
+
+Additional:
+4. Memberships.csv: variables include: "zip", "population", "members_nrdc", "members_nwf", "members_tnc", "average", "average_rounded", "rate"   
+
+
 #### Outline of lexisUni text analysis (checked if done):
+
  1. Dowload pdf from lexisUni - search terms: "Master Project Name" AND "Project Developer" AND "wind" AND "energy' (if necessary, the state was added in the search term if location was not precise enough. 
  2. Save pdf in sample_pdfs folder x
       Each pdf saved as "fulltext"+ # search results if <10" + "abbreved project developer" "# of results pages in         >10", collapsed with "_" x
-2. Create a df with everypdf in each row. my_data x
-3. Create df with unested text unested,such that each row is a pdf page.x
+2. Create a df ; every pdf in each row. my_data x
+3. Create df with text unested,such that each row is a pdf page.x
 4. Merge the pages so that each project with NU articles get a full text compiling all NU articles into 1 cell.
 5. Created new df that splits each page by word, sch that every row is a word in the text (unest_tokens where tokens are pdf) x
-Note: the same is done the google sentiment csv 
+Note: the same is done the google sentiment csv - 
 5. Get word count of specific words through group_by()
 Conduct sentiment analysis on unique words x 
 6. get hits and number of hits of different 'negative words' x
@@ -34,11 +45,11 @@ Other notes:
  
 ```{r load_packages}
 
-### Packages 
+#### Packages 
+#install.packages("pdftools")
 library(pdftools)
-library(tm)
+# library(tm) # dont really need
 # install.packages("rlang")
-# remove.packages("devtools")
 # install.packages("devtools")
 library(devtools)
 library(dplyr)
@@ -57,6 +68,16 @@ library(gsubfn)
 # install.packages("tidytext")
 # library(tm.plugin.lexisnexis)
 # install.packages("gsubfn", "dplyr", "tidytext")
+#install.packages
+# install.packages("broom")
+library(broom)
+# install.packages("dotwhisker")
+library(dotwhisker)
+# install.packages("jtools")
+library(jtools)
+# install.packages("sjPlot")
+library(sjPlot)
+
 ```
 
 
@@ -97,8 +118,6 @@ pdf_downloader(NU_PDFs_R_folder, NU_PDFS_R)
 
 ```
 
-
-
 ```{r import_data_google_drive}
 ##### Ventyx ####
 
@@ -120,9 +139,6 @@ ventyx_projects <- read_csv("~/Desktop/Copy_ventyx_converted_01_08_2019_PopDensi
 #For Alex:
 #ventyx_projects <- read_csv("C:/Users/airvi/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
 
-#To view the dataset:
-#View(ventyx_projects)
-
 #To change the 0-1 definition to Low-High
 ventyx_df <- mutate(ventyx_projects, H_L_W = ifelse(lr_tif>0, "Low", "High"))
 
@@ -130,8 +146,10 @@ ventyx_df <- mutate(ventyx_projects, H_L_W = ifelse(lr_tif>0, "Low", "High"))
 ventyx_df$ProjectName <- gsub(" ", "", ventyx_df$ProjectName, fixed = TRUE)
 ventyx_df$document <- gsub(" ", "", ventyx_df$document, fixed = TRUE)
 
+
 #### Google News ######
-#Before running this code, make sure you have the Google scraping dataset saved on your desktop. The file path that the "read_csv" function accesses should be where the file is located on your desktop. 
+#Before running this code, make sure you have the Google scraping dataset saved on your desktop. Should have it using the pdfdowloader function. 
+# The file path that the "read_csv" function accesses should be where the file is located on your desktop. 
 
 #For MAC and BREN computers:
 google_df <- read_csv("~/Desktop/Copy_google_scraping_01-08-19.csv")
@@ -158,7 +176,7 @@ pdf_directory <- '~/Desktop/NU_PDFS_R'
 #pdf_directory <- "D:/Desktop/All_LexisUni_PDFs"
 #pdf_directory <- "~/Desktop/All_LexisUni_PDFs"
 
-#Listing all PDFs: should be 349 PDFs
+#Listing all PDFs: should be 372 PDFs
 pdfs <- paste(pdf_directory, "/", list.files(pdf_directory, pattern = "*.pdf", ignore.case = T), sep = "")
 
 #PDF names
@@ -177,11 +195,13 @@ pdfs_text <- purrr::map(pdfs, pdftools::pdf_text)
 ##### NU ####
 #This combines the pdfs_names and pdfs_texts variables from the previous code chunk, into a single dataframe
 #Each row is a PDF doc name with the full pdf text. Note: in the text column, each row is an element of a list
+
 projects_NU <- data_frame(document = pdfs_names, text = pdfs_text)
 
 #### Google ####
 #This creates a data frame of just the project name and full text for each Google News article
 #Each row is the project name with the full article text
+
 projects_google <- data_frame(document = google_df$ProjectName, text = google_df$FullText)
 
 ```
@@ -190,21 +210,25 @@ projects_google <- data_frame(document = google_df$ProjectName, text = google_df
 ```{r page_split_aggregate}
 
 #Dataset with each page in one row
+
 project_pdfpages_NU <- projects_NU %>% 
   unnest() # splits pdf text by page and removes list format ( c("")) since each element is now its own row.
 
-#Collapse pages so that every row under text is the full pdf. Chose to indicate page separation by (/page)
+#Collapse pages so that every row under text column is the full pdf. Chose to indicate page separation by (/page)
+
 project_pdfs_full_text <- project_pdfpages_NU %>%
   group_by(document) %>%
   summarise(text = paste(text, collapse = " (/p) "))
+
     # note: if you write this to a csv, the next will go the next line and won't look like a clean csv (i.e. Alex's google news csv). TBc.
 
-write_csv(project_pdfs_full_text, "TextAnalysis/NexisUni/project_pdfs_full_text.csv")
+# write_csv(project_pdfs_full_text, "TextAnalysis/NexisUni/project_pdfs_full_text.csv")
 
 ```
 
 #### Split text by word (unnest_tokens())
 ```{r word_split}
+
 #### NU ####
 #Dataset with each word in a row associated with its pdf source
 #Also filters out unwanted words
@@ -218,40 +242,41 @@ projects_words_NU <- project_pdfs_full_text %>%
                       "about lexisnexis",
                       "Privacy Policy",
                       "Terms & Conditions", 
-                      "Copyright ? 2018 LexisNexis",
+                      "Copyright � 2018 LexisNexis",
                       " | ",  
                       "@", 
                       "lexisnexis", "(/p)"))
 
-#head(projects_words_NU)
-length(unique(projects_words_NU$document)) # results: still 349 projects here after word parsing
-# 
-# projects_words_NU <- projects_NU %>% 
-#   unnest() %>% 
-#   tidytext::unnest_tokens(output = word, input = text, token = 
-#                           "words", to_lower = T) %>%      
-#   filter(!word %in% c("lexis",
-#                       "nexis", 
-#                       "Uni",
-#                       "about lexisnexis",
-#                       "Privacy Policy",
-#                       "Terms & Conditions", 
-#                       "Copyright © 2018 LexisNexis",
-#                       " | ",  
-#                       "@", 
-#                       "lexisnexis")) 
+length(unique(projects_words_NU$document)) # results: still 372 projects here after word parsing
 
-# %>% gsub("[^A-Za-z0-9,;._-]","")
-
-#projects_pdfnest_NU <- projects_pdftext %>% 
-#  unnest() %>% 
-#  tidytext::unnest_tokens(output = ngrams, input = text, token = "ngrams", n = 5, to_lower = T)
-
-# note: unnest_tokens() splits text by respective element (ie word, phrase, ...) word is default
+  ## From original nested df 
+  # projects_words_NU <- projects_NU %>% 
+  #   unnest() %>% 
+  #   tidytext::unnest_tokens(output = word, input = text, token = 
+  #                           "words", to_lower = T) %>%      
+  #   filter(!word %in% c("lexis",
+  #                       "nexis", 
+  #                       "Uni",
+  #                       "about lexisnexis",
+  #                       "Privacy Policy",
+  #                       "Terms & Conditions", 
+  #                       "Copyright © 2018 LexisNexis",
+  #                       " | ",  
+  #                       "@", 
+  #                       "lexisnexis")) 
+  
+  # %>% gsub("[^A-Za-z0-9,;._-]","")
+  
+  ## to catch ngrams
+  #projects_pdfnest_NU <- projects_pdftext %>% 
+  #  unnest() %>% 
+  #  tidytext::unnest_tokens(output = ngrams, input = text, token = "ngrams", n = 5, to_lower = T)
+  
+  # note: unnest_tokens() splits text by respective element (ie word, phrase, ...) word is default
 
 
 #### Google #####
-#Dataset with each word in a row associated with its project source 
+#Same process for google: dataset with each word in a row associated with its project source 
 projects_words_google <- projects_google %>% 
   tidytext::unnest_tokens(output = word, input = text, token = "words", to_lower = F)
 head(projects_words_google)
@@ -262,27 +287,24 @@ head(projects_words_google)
 ```{r group_by}
 
 #### NU ####
+#Counts the number of time a specific words is found in the article
 projects_words_count_NU <- projects_words_NU %>%
   group_by(document, word) %>% 
   summarise(count = n())
-#View(projects_pdfwords_count)
-#Counts the number of time a specific words is found in the pdf page
-
-length(unique(projects_words_count_NU$document)) # results: there are still 349 projects here 
-
-# projects_pdfnest_count <- projects_pdfnest_NU %>%
-#   group_by(document, ngrams) %>% 
-#   summarise(count = n())
-#View(projects_pdfnest_count)
-#add new count column with most freq. words
-
 
 #### Google ####
+#Counts the number of time a specific words is found in the article
 projects_words_count_google <- projects_words_google %>%
   group_by(document, word) %>% 
   summarise(count = n())
-#View(projects_pdfwords_count)
-#Counts the number of time a specific words is found in the article
+
+  # length(unique(projects_words_count_NU$document)) # results: there are still 349 projects here 
+  # projects_pdfnest_count <- projects_pdfnest_NU %>%
+  #   group_by(document, ngrams) %>% 
+  #   summarise(count = n())
+  #View(projects_pdfnest_count)
+  #add new count column with most freq. words
+
 ```
 
 #### Sentiment dictionaries
@@ -298,11 +320,14 @@ get_sentiments("nrc") # associated word with another sentiment feeling word
 # View(get_sentiments("nrc"))
 
 # We want scores not categorized words, so we will use AFINN for now.
+
 ```
 
 #### Bind Sentiments
 ```{r bind_sentiment}
+
 #### NU ####
+
 projects_score_bind_NU <-projects_words_count_NU %>% 
   left_join(get_sentiments("afinn"), by = "word") %>% 
   # filter(score != "NA") %>% 
@@ -317,7 +342,7 @@ projects_score_bind_NU_NA <-projects_words_count_NU %>%
   filter(is.na(score)) 
 
 
-length(unique(projects_score_bind_NU$document)) # 349
+length(unique(projects_score_bind_NU$document)) # 372
 ### general examples
 
 ## projects with few words
@@ -382,51 +407,37 @@ total_sentiment_google <- projects_score_bind_google %>%
 
 ```
 
-####Combine sentiment scores with original data
-```{r combinewithsen}
+#### Combine sentiment scores with original data
+```{r Clean_&_combinewithsen}
 
 #### NU ####
 
 #Convert to data frame
 total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
-# View(total_sentiment_NU_df)
-# View(ventyx_df)
-# To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
+View(total_sentiment_NU_df)
+# View to To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
+    # View(total_sentiment_NU_df)
+    # View(ventyx_df)
 
 # Remove white space in document names in ventyx and total_sentiment_NU_df
 
-
-# mutate new column with project names
-# total_sentiment_NU_df <- total_sentiment_NU_df %>%
-#   mutate(ProjectName = sub("\\_.*$", "", document)) # extract words before first '_' in document name
-
-#NU
 total_sentiment_NU_df$document <- gsub(" ", "", total_sentiment_NU_df$document)
 
 #Ventyx 
-# ventyx_df$document <- gsub(" ", "", ventyx_df$document)
+  # ventyx_df$document <- gsub(" ", "", ventyx_df$document)
   
-# View(ventyx_df)
-# View(total_sentiment_NU_df)
-
-#Merge with original data (ventyx_df)
-# 
-# View(ventyx_df)
-# View(total_sentiment_NU_df)
-# 
-# a <- intersect(ventyx_df$document, total_sentiment_NU_df$document) 
-# setdiff(total_sentiment_NU_df$document, a)
-
+# Manually fix to ensure matchdone correctly
 ventyx_df[ventyx_df$ProjectName == "71RWind",]$document = "71RWind_71Ranch_1(1).PDF"
 ventyx_df[ventyx_df$ProjectName == "CHillWindFarm",]$document = "CHill_ExergyIntegratedSystems_1.PDF"
 ventyx_df[ventyx_df$ProjectName == "AdamsProject",]$document = "AdamsProject_MidAmerican_1(2).PDF"
 ventyx_df[ventyx_df$ProjectName == "LJTrust",]$document = "LJTrust_LJTrust_1(1).PDF"
 ventyx_df[ventyx_df$ProjectName == "MinonkWindFarm",]$document = "MinonkWindFarm_MinonkWindFarm_1.PDF"
 
+#### Merge with original data (ventyx_df) ###
   
 ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE)
 # ventyx_df_NU_Sen <- merge(ventyx_df, total_sentiment_NU_df, by = "document", all = TRUE) #old
-
+View(ventyx_df_NU_Sen)
 #Rename "totals" column
 
 ventyx_df_NU_Sen <- rename(ventyx_df_NU_Sen, NU_Sentiment=totals)
@@ -436,18 +447,17 @@ length(unique(ventyx_df_NU_Sen$document)) # includes NA as a unique(document) NU
 length(unique(total_sentiment_NU_df$document)) # excludes NA as a document
 
 
-#### Google #####
+#### Adding in Google #####
 #Convert to data frame
+
 total_sentiment_google_df = as.data.frame(total_sentiment_google)
 #Remove white space in order to perform merge (google data has extra white spaces)
 total_sentiment_google_df$document <- gsub(" ", "", total_sentiment_google_df$document, fixed = TRUE)
-
 
 #Merge with original data
 ventyx_df_google_Sen <- merge(ventyx_df, total_sentiment_google_df, by.x ="ProjectName", by.y = "document", all = TRUE)
 #Rename "totals" columns
 ventyx_df_google_Sen <- rename(ventyx_df_google_Sen, Google_Sentiment=totals)
-
 
 #### Combined ####
 ventyx_df_NU_google_Sen <- merge(ventyx_df_NU_Sen, total_sentiment_google_df, by.x = "ProjectName", by.y = "document", all = TRUE)
@@ -457,7 +467,6 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
   mutate(NU_Sentiment = ifelse(is.na(NU_Sentiment),0,NU_Sentiment)) %>% 
   mutate(Google_Sentiment = ifelse(is.na(Google_Sentiment),0,Google_Sentiment))
 
-
 ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>% 
   filter(Capacity >= 0) %>% 
   filter(TimelineDays > 0)
@@ -466,17 +475,21 @@ length(unique(ventyx_df_NU_google_Sen$ProjectName))
 
 ### For descriptive stats
 
-#write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
-write_csv(total_sentiment_google_df, "TextAnalysis/googlenews/total_sentiment_google_df.csv")
-write_csv(total_sentiment_NU_df, "TextAnalysis/NexisUni/total_sentiment_NU_df.csv")
+# write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
+# write_csv(total_sentiment_google_df, "TextAnalysis/googlenews/total_sentiment_google_df.csv")
+# write_csv(total_sentiment_NU_df, "TextAnalysis/NexisUni/total_sentiment_NU_df.csv")
 
 ```
 
-####Convert sentiment scores to positive or negative in new column (optional)
+#### Convert sentiment scores to positive or negative in new column (optional)
 ```{r pos_or_neg_sen}
 
+# Adding column for positive negative valuation of sentiment score: 
+
 ventyx_df_NU_Sen <- mutate(ventyx_df_NU_Sen, Sign_NU = ifelse(NU_Sentiment>0, "Positive", "Negative"))
+
 ventyx_df_google_Sen <- mutate(ventyx_df_google_Sen, Sign_Google = ifelse(Google_Sentiment>0, "Positive", "Negative"))
+
 ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>% 
   mutate(Sign_Google = ifelse(Google_Sentiment>=0, "Positive", "Negative")) %>% 
   mutate(Sign_NU = ifelse(NU_Sentiment>=0, "Positive", "Negative"))
@@ -484,7 +497,7 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
 
 ```
 
-####Add environmental memberships data
+#### Add environmental memberships data
 ```{r env_members}
 #For Alex
 #zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/zip_code_database.csv")
@@ -527,11 +540,14 @@ length(ventyx_df_NU_google_Sen$ProjectName)
 
 
 ####Prepare the relevant columns for regression
-```{r organize_for_regressions}
+```{r reclass_&_organize_for_regressions}
+
 #na.omit(ventyx_df_NU_Sen$Household_MeanIncome)
 #na.omit(ventyx_df_NU_Sen$PopDensity_mi)
 #na.omit(ventyx_df_NU_Sen$lr_tif)
 #na.omit(ventyx_df_NU_Sen$View_Score)
+
+# here we reclass and reorganize for regression:
 
 #### NU ####
 ventyx_df_NU_Sen$H_L_W <- as.factor(ventyx_df_NU_Sen$H_L_W)
@@ -609,19 +625,23 @@ length(ventyx_df_NU_google_Sen$ProjectName)
 
 ```
 
-####Run Regressions
+```{r write_final_reg_csv}
+
+write_csv(ventyx_df_NU_google_Sen, "G:/Data/ventyx_df_NU_google_Sen.csv")
+
+
+```
+
+
+
+###########
+# Run Regressions
+########
 
 
 ```{r prep}
 
-#install.packages
-require(broom)
-require(dplyr)
-# install.packages("dotwhisker")
-library(dotwhisker)
-
-install.packages("jtools")
-library(jtools)
+read_csv("G:/Data/ventyx_df_NU_google_Sen.csv")
 
 renamed_variables <- c(View_Score = "View Score",
                         Google_Sentiment = "Google News Publicity score",
@@ -744,8 +764,7 @@ dwplot(regression3[!grepl("^State*", regression3$term),] %>%
 
 library(RColorBrewer)
 
-
-View(regression1)
+# View(regression1)
 
 length(ventyx_df_google_Sen)
 
@@ -892,6 +911,26 @@ dwplot(combined_reg %>%
 
 ```
 
+#### NU sentiment=environmental membership added + interact term
+```{r R13}
+####13. Timeline on left-hand side, using NU sentiment. Interaction term between NU and high-low impact. Environmental memberships variable added. N/A scores coded as 0
+reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
+
+summary(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+dwplot(tidy(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter))
+```
+
+#### Google sentiment=environmental membership added + interact term
+```{r R14}
+####14. Timeline on left-hand side, using Google sentiment. Interaction term between Google and high-low impact. Environmental memberships variable added. N/A scores coded as 0
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
+
+summary(tidy(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter))
+
+dwplot(tidy(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter))
+```
+
+
 ### NA Sentiment scores coded as '0' - No interaction term
 
 #### NU and Google 
@@ -912,7 +951,6 @@ renamed_variables <- c(View_Score = "View Score",
                         Household_MedianIncome = "Household Median Income",
                         Capacity = "Capacity",
                         H_L_WLow = "High vs. low impact area")
-
 
 # everything 
 dwplot(tidy(reg_TLD_ZEROES_VS_GNSen_PopDen_MedianIncome_Cap_HL_State), dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick", lwd=0.5))+
@@ -1089,8 +1127,7 @@ dwplot(combined_reg %>%
 
 
 ### Sentiment on left hand side - NAs still coded as '0'
-
-# NU sentiment
+#### NU sentiment
 ```{r R11}
 ####11. NU Sentiment on left-hand side. N/A scores coded as "0"
 reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(NU_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
@@ -1122,7 +1159,8 @@ dwplot(regressionA[!grepl("^State*", regressionA$term),] %>%
 
 
 ```
-# google sentiment
+
+#### Google sentiment
 ```{r R12}
 ####12. Google Sentiment on left-hand side. N/A scores coded as "0"
 reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State <- lm(Google_Sentiment ~ View_Score + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State, data=ventyx_df_NU_google_Sen)
@@ -1158,26 +1196,30 @@ dwplot(regressionB[!grepl("^State*", regressionB$term),] %>%
 
 ```
 
-```{r R13}
-####13. Timeline on left-hand side, using NU sentiment. Interaction term between NU and high-low impact. Environmental memberships variable added. N/A scores coded as 0
-reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
-
-summary(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
-dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
-```
-
-
 ```{r R14}
 ####14. Timeline on left-hand side, using Google sentiment. Interaction term between Google and high-low impact. Environmental memberships variable added. N/A scores coded as 0
-reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
 
 summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
-dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+dwplot(tidy(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter))
 ```
+
+```{r marginal_effects}
+#Marginal effects of regression 14
+
+#Covariance
+vcov(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+#Plot of marginal effect of interaction term. Can use mdrt.values = "minmax" to show max and min value
+plot_model(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter, type = "int", mdrt.values = "meansd") + theme_bw() + xlab("Habitat Impact") + ylab("Timeline (days)\n") + ggtitle("Marginal Effect of Interaction Term")
+#Can use the scale function to "mean-center" the data
+#Is the sum of alpha 1 (google sentiment) and alpha 3 (interaction term) different than zero
+#restricted vs unrestricted model. 
+
+```
+
 
 
 ## OTHER 
-
 #### Headlines
 ```{r Extract_headlines_id_duplicates}
 
@@ -1193,7 +1235,6 @@ projects_pdf_titles <- project_pdfs_full_text %>%
 
   
 ## Identify duplicate headlines 
-  
   
 
   
