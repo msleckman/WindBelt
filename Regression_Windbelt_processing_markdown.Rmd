@@ -413,8 +413,12 @@ total_sentiment_google <- projects_score_bind_google %>%
 #### NU ####
 
 #Convert to data frame
-total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
-View(total_sentiment_NU_df)
+total_sentiment_NU_df_2 = as.data.frame(total_sentiment_NU)
+total_sentiment_NU_df = as.data.frame(total_sentiment_with_stats_NU)
+
+# View(total_sentiment_NU_df_2)
+# View(total_sentiment_NU_df)
+
 # View to To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
     # View(total_sentiment_NU_df)
     # View(ventyx_df)
@@ -450,7 +454,12 @@ length(unique(total_sentiment_NU_df$document)) # excludes NA as a document
 #### Adding in Google #####
 #Convert to data frame
 
-total_sentiment_google_df = as.data.frame(total_sentiment_google)
+total_sentiment_google_df_2 = as.data.frame(total_sentiment_google)
+total_sentiment_google_df = as.data.frame(total_sentiment_with_stats_google)
+
+# View(total_sentiment_google_df_2)
+# View(total_sentiment_google_df)
+
 #Remove white space in order to perform merge (google data has extra white spaces)
 total_sentiment_google_df$document <- gsub(" ", "", total_sentiment_google_df$document, fixed = TRUE)
 
@@ -603,6 +612,13 @@ str(ventyx_df_NU_google_Sen)
 
 summary(ventyx_df_NU_google_Sen)
 
+View(ventyx_df_NU_google_Sen)
+
+
+reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
+
+summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
 ### adding normalization to df 
 
 normalize <- function(x){
@@ -685,7 +701,8 @@ View(projects_pdftext_2)
 
 ```{r }
 
-# tbd
+
+
 
 ````
 

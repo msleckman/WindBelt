@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #### Initial read in files: 
 Main:
-1. Ventyx dataset: variables included: "ProjectName", "ProjectDeveloper", "ProjectOwner", "State", "County", "State_County", "County, State", "PopDensity_mi"          "Household_MeanIncome", "Household_MedianIncome",  "View_Score", "Latitude", "Longitude", "Capacity", "CurrentPhase", "ArtificialEnd", "TimelineDays", "lr_tif" (low risk areas)         "document" (pdf associated), "H_L_W" (whether in high or low risk area - essentially lr_tif in binary form)
+1. Ventyx dataset: variables included: "ProjectName", "ProjectDeveloper", "ProjectOwner", "State", "County", "State_County", "County, State", "PopDensity_mi", "Household_MeanIncome", "Household_MedianIncome",  "View_Score", "Latitude", "Longitude", "Capacity", "CurrentPhase", "ArtificialEnd", "TimelineDays", "lr_tif" (low risk areas)         "document" (pdf associated), "H_L_W" (whether in high or low risk area - essentially lr_tif in binary form)
 2. NU_pdf_text: variables includes 'document' ("projectname_developer_numberofNUarticles.pdf") and 'text' (as a string based on pages)
 3. google_df: "PDFName" ("projectname_developer_numberofNUarticles.pdf"), "ProjectName", "ProjectDeveloper", "State", "NegativeWordCount", "FullText"      
 
@@ -43,7 +43,7 @@ Other notes:
  str_match()
  regex() 
  
-```{r load_packages}
+```{r load_packages, results='hide'}
 
 #### Packages 
 #install.packages("pdftools")
@@ -64,6 +64,7 @@ library(knitr)
 library(readr)
 library(stringr)
 library(gsubfn)
+# install.packages("sjPlot")
 library(sjPlot)
 # install.packages("tidyverse")
 # install.packages("tidytext")
@@ -78,6 +79,15 @@ library(dotwhisker)
 library(jtools)
 # install.packages("sjPlot")
 library(sjPlot)
+
+```
+
+```{r, child = 'Regression_WindBelt_processing_markdown.Rmd'}
+
+```
+
+```{r, child = 'Regression_Windbelt_runs_plots.Rmd'}
+
 
 ```
 
@@ -105,6 +115,10 @@ pdf_downloader <- function(templates_dribble, local_folder){
   # download all pdfs
   
   for (i in 1:nrow(templates_dribble)){
+    
+    # insert if statement 
+    
+    
     drive_download(as_id(templates_dribble$id[[i]]), 
                    file.path(local_folder, templates_dribble$name[[i]]),
                    overwrite = F) #check if overwrite is needed here
@@ -160,7 +174,6 @@ google_df <- read_csv("~/Desktop/Copy_google_scraping_01-08-19.csv")
 
 #To view the dataset:
 #View(google_df)
-
 
 ```
 
@@ -246,7 +259,9 @@ projects_words_NU <- project_pdfs_full_text %>%
                       "Copyright © 2018 LexisNexis",
                       " | ",  
                       "@", 
-                      "lexisnexis", "(/p)"))
+                      "lexisnexis", "(/p)")
+         )
+# head(projects_words_NU,30)
 
 length(unique(projects_words_NU$document)) # results: still 372 projects here after word parsing
 
@@ -279,10 +294,32 @@ length(unique(projects_words_NU$document)) # results: still 372 projects here af
 #### Google #####
 #Same process for google: dataset with each word in a row associated with its project source 
 projects_words_google <- projects_google %>% 
-  tidytext::unnest_tokens(output = word, input = text, token = "words", to_lower = F)
+  tidytext::unnest_tokens(output = word, input = text, token = "words", to_lower = F) 
+
+stop_words
+  
+
 head(projects_words_google)
 
 ```
+
+```{r words_per project}
+
+
+projects_words_nu_totalwords <- projects_words_NU %>% 
+  group_by(document) %>% 
+  summarise(word_count_per_project = n())
+
+  View(projects_words_nu_totalwords)
+
+projects_words_google_totalwords <- projects_words_google %>% 
+  group_by(document) %>% 
+  summarise(word_count_per_project = n())
+
+View(projects_words_google_totalwords)
+
+```
+
 
 #### Group words by pdf/project and summarize by frequency
 ```{r group_by}
@@ -335,6 +372,11 @@ projects_score_bind_NU <-projects_words_count_NU %>%
   filter(!is.na(score)) 
 # Note: Many of the scores per words are NA simply because that word does not exist. 
   
+projects_score_bind_NU_2 <- projects_words_NU %>% 
+  left_join(get_sentiments("afinn"), by = "word") %>% 
+  # filter(score != "NA") %>% 
+  filter(!is.na(score)) 
+
 unique(projects_score_bind_NU$document)
 
 # look at which projects have NA all NA's as words
@@ -386,9 +428,9 @@ total_sentiment_NU <- projects_score_bind_NU %>%
   #filter(score !="NA") %>% 
   group_by(document) %>% 
   summarise(totals = mean(score))
-  
+
 #View(total_sentiment_with_stats_NU)
-# View(total_sentiment_NU)
+View(total_sentiment_NU)
 length(unique(total_sentiment_NU$document)) # --> 372
 
 #### Google #####
@@ -404,7 +446,9 @@ total_sentiment_google <- projects_score_bind_google %>%
   #filter(score !="NA") %>% 
   group_by(document) %>% 
   summarise(totals = mean(score))
-  
+
+View(head(total_sentiment_google))
+View(head(total_sentiment_with_stats_google))  
 
 ```
 
@@ -414,7 +458,9 @@ total_sentiment_google <- projects_score_bind_google %>%
 #### NU ####
 
 #Convert to data frame
+
 total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
+# total_sentiment_NU_df = as.data.frame(total_sentiment_with_stats_NU)
 View(total_sentiment_NU_df)
 # View to To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
     # View(total_sentiment_NU_df)
@@ -452,6 +498,8 @@ length(unique(total_sentiment_NU_df$document)) # excludes NA as a document
 #Convert to data frame
 
 total_sentiment_google_df = as.data.frame(total_sentiment_google)
+# total_sentiment_google_df = as.data.frame(total_sentiment_with_stats_google)
+
 #Remove white space in order to perform merge (google data has extra white spaces)
 total_sentiment_google_df$document <- gsub(" ", "", total_sentiment_google_df$document, fixed = TRUE)
 

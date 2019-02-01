@@ -17,18 +17,58 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r prep}
 
+
+
+source(file = 'Regression_Windbelt_processing_markdown.Rmd')
+
+
+#### Packages 
+#install.packages("pdftools")
+library(pdftools)
+# library(tm) # dont really need
+# install.packages("rlang")
+# install.packages("devtools")
+library(devtools)
+library(dplyr)
+library(tidytext)
+library(broom)
+library(data.table)
+# install.packages("colorspace")
+library(tidyverse)
+library(purrr)
+library(googledrive)
+library(knitr)
+library(readr)
+library(stringr)
+library(gsubfn)
+# install.packages("tidyverse")
+# install.packages("tidytext")
+# library(tm.plugin.lexisnexis)
+# install.packages("gsubfn", "dplyr", "tidytext")
+#install.packages
+# install.packages("broom")
+library(broom)
+# install.packages("dotwhisker")
+library(dotwhisker)
+# install.packages("jtools")
+library(jtools)
+install.packages("sjPlot")
+library(sjPlot)
+
+
+
 ventyx_df_NU_google_Sen <- read_csv("G:/Data/ventyx_df_NU_google_Sen.csv")
 
 renamed_variables <- c(View_Score = "View Score",
-                        Google_Sentiment = "Google News Publicity score",
-                        NU_Sentiment = "Nexis Uni Publicity score",
+                        Google_Sentiment = "Google News Publicity Score",
+                        NU_Sentiment = "Nexis Uni Publicity Score",
                         PopDensity_mi = "Population Density per m2",
                         Household_MedianIncome = "Household Median Income",
                         Capacity = "Capacity",
-                        H_L_WLow = "low environmental impact area"
+                        H_L_WLow = "Low Impact Area",
+                       'Google_Sentiment:H_L_WLow' = "Low Impact Area * Publicity Score")
                         # H_L_W*NU_Sentiment = "site vs. sentiment interaction"
-                       )
-
+                       
 ```
 
 
@@ -43,7 +83,7 @@ reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays
 names(ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-summ(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+# summ(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
   
 ## note: wen env.members is present, get a google_sentiment p value=0.01029 
   ## when env.members is NOT present, get a google_sentiment p value=0.01023 
@@ -95,35 +135,41 @@ library(RColorBrewer)
 
 length(ventyx_df_google_Sen)
 
+jpeg("largevar.jpg", width = 1000, height = 600, units = "px", pointsize = 20, quality = 1000)
 dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
- relabel_predictors(renamed_variables), 
-   dot_args = list(colour = "forestgreen", lwd = 1.5),
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "forestgreen", lwd = 3),
    whisker_args = list(colour = "forestgreen", lwd = 0.8)
    )+
   labs(x = "Timeline (days)", y = "")+
-  ggplot2::geom_vline(xintercept = 0, colour = "grey80", linetype = 2)+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
   theme_classic()+
   # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
   theme(legend.background = element_rect(colour="black"),
-        axis.text.y = element_text(size = 11, hjust=1),
-        axis.text.x = element_text(size = 11, hjust=1),
-        axis.title.x.bottom = element_text(size=13, vjust = -1))
+        axis.text.y = element_text(size = 16, hjust=1, colour = "black",),
+        axis.text.x = element_text(size = 16, hjust=1, colour = "black"),
+        axis.title.x.bottom = element_text(size=18, vjust = -2,  margin = margin(t = -2, r = 20, b = 20, l = 0)))
+dev.off()
+setwd("G:/Deliverables/")
+getwd()
 
 # View(regression3)
-
+jpeg("smallvar.jpg", width = 1200, height = 600, units = "px", pointsize = 20, quality = 1000)
 dwplot(regression3[!grepl("^State*|H_L_WLow|Google_Sentiment|Google_Sentiment:H_L_WLow", regression3$term),] %>% 
    relabel_predictors(renamed_variables), 
-   dot_args = list(colour = "forestgreen", lwd = 1.5),
-   whisker_args = list(colour = "forestgreen", lwd = 0.75)
+   dot_args = list(colour = "forestgreen", lwd = 3),
+   whisker_args = list(colour = "forestgreen", lwd = 0.8)
    )+
   labs(x = "Timeline (days)", y = "")+
-  ggplot2::geom_vline(xintercept = 0, colour = "grey80", linetype = 2)+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
   theme_classic()+
   # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
   theme(legend.background = element_rect(colour="black"),
-        axis.text.y = element_text(size = 11, hjust=1),
-        axis.text.x = element_text(size = 11, hjust=1),
-        axis.title.x.bottom = element_text(size=13, vjust = -1))
+        axis.text.y = element_text(size = 16, hjust=1, colour = "black",),
+        axis.text.x = element_text(size = 16, hjust=1, colour = "black"),
+        axis.title.x.bottom = element_text(size=18, vjust = -2,  margin = margin(t = -2, r = 20, b = 20, l = 0)))
+
+dev.off()
 
 ```
 
@@ -274,6 +320,9 @@ dwplot(regressionA[!grepl("^State*", regressionA$term),] %>%
 ### Plot of interaction Term
 ```{r marginal_effects}
 #Marginal effects of regression 14
+
+# install.packages("sjPlot")
+library(sjPlot)
 
 #Covariance
 vcov(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
