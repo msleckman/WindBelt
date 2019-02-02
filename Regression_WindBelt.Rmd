@@ -1288,7 +1288,7 @@ plot_model(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter, type 
 
 ```{r R14}
 ####14. Timeline on left-hand side, using Google sentiment. Interaction term between Google and high-low impact. Environmental memberships variable added. N/A scores coded as 0
-reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
 
 ```
 

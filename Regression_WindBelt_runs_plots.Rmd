@@ -79,7 +79,7 @@ renamed_variables <- c(View_Score = "View Score",
 ```{r R9 OFFICIAL_RESULT}
 
 ####9. All variables included -- using only Google scores and an interaction between high-low and Google sentiment. N/A scores coded as "0"
-reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
+reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
 
 names(ventyx_df_NU_google_Sen)
 
@@ -145,21 +145,56 @@ dwplot(regression3[!grepl("^State*", regression3$term),] %>%
 
 dim(ventyx_df_google_Sen)
 
-jpeg("largevar.jpg", width = 1000, height = 600, units = "px", pointsize = 20, quality = 1000)
+jpeg("largevar.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000)
 dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
    relabel_predictors(renamed_variables), 
-   dot_args = list(colour = "forestgreen", lwd = 3),
-   whisker_args = list(colour = "forestgreen", lwd = 0.8)
+   dot_args = list(colour = "#6fa4dc", lwd = 5),
+   whisker_args = list(colour = "#6fa4dc", lwd = 1.5)
    )+
   labs(x = "Timeline (days)", y = "")+
-  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2, lwd = 1)+
   theme_classic()+
   # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
   theme(legend.background = element_rect(colour="black"),
-        axis.text.y = element_text(size = 16, hjust=1, colour = "black",),
-        axis.text.x = element_text(size = 16, hjust=1, colour = "black"),
-        axis.title.x.bottom = element_text(size=18, vjust = -2,  margin = margin(t = -2, r = 20, b = 20, l = 0)))
+        axis.text.y = element_text(size = 20, hjust=1, colour = "black"),
+        axis.text.x = element_text(size = 20, hjust=1, colour = "black"),
+        axis.title.x.bottom = element_text(size=24, vjust = -2,  margin = margin(t = -2, r = 20, b = 35, l = 0)),
+        # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
+        axis.line = element_line(colour = 'black', size = 1))
+        
 dev.off()
+
+
+#### transparent background
+jpeg("largevar_trans.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000, bg = "transparent")
+dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
+   relabel_predictors(renamed_variables), 
+   dot_args = list(colour = "#6fa4dc", lwd = 5),
+   whisker_args = list(colour = "#6fa4dc", lwd = 1.5)
+   )+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2, lwd = 1)+
+  # theme_classic()+
+  # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
+  theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+  )
+  # theme(legend.background = element_rect(colour="black"),
+  #       axis.text.y = element_text(size = 18, hjust=1, colour = "black"),
+  #       axis.text.x = element_text(size = 18, hjust=1, colour = "black"),
+  #       axis.title.x.bottom = element_text(size=20, vjust = -2,  margin = margin(t = -2, r = 20, b = 35, l = 0)),
+  #       # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
+  #       axis.line = element_line(colour = 'black', size = 1))
+        
+dev.off()
+
+
+
 setwd("G:/Deliverables/")
 getwd()
 
@@ -180,6 +215,29 @@ dwplot(regression3[!grepl("^State*|H_L_WLow|Google_Sentiment|Google_Sentiment:H_
         axis.title.x.bottom = element_text(size=18, vjust = -2,  margin = margin(t = -2, r = 20, b = 20, l = 0)))
 
 dev.off()
+
+```
+
+```{r marginal effects term}
+
+library(stats)
+library(jtools)
+vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+jpeg("interaction_graph.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000, bg = "transparent")
+plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter,
+           type = "int", mdrt.values = "meansd") +
+  xlab("Google News Publicity Score")+ylab("Timeline (days)\n") +
+  ggtitle("Marginal Effect of Interaction Term")+
+   theme_classic()+
+  # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="black"),
+        axis.text.y = element_text(size = 16, hjust=1, colour = "black"),
+        axis.text.x = element_text(size = 16, hjust=1, colour = "black"),
+        axis.title.x.bottom = element_text(size=18, vjust = -2,  margin = margin(t = -2, r = 20, b = 20, l = 0)),
+        axis.title.y.right = element_text(size=25, vjust = -2))
+  # )
+        dev.off()
 
 ```
 
@@ -333,11 +391,42 @@ dwplot(regressionA[!grepl("^State*", regressionA$term),] %>%
 
 # install.packages("sjPlot")
 library(sjPlot)
-
+library(stats)
 #Covariance
 vcov(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 #Plot of marginal effect of interaction term. Can use mdrt.values = "minmax" to show max and min value
 plot_model(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter, type = "int", mdrt.values = "meansd") + theme_bw() + xlab("Habitat Impact") + ylab("Timeline (days)\n") + ggtitle("Marginal Effect of Interaction Term")
+
+plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, type = "int", mdrt.values = "meansd") + theme_bw() + xlab("Habitat Impact") + ylab("Timeline (days)\n") + ggtitle("Marginal Effect of Interaction Term")
+
+#Marginal effects of regression 14
+
+#Covariance
+vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+#Plot of marginal effect of interaction term. Can use mdrt.values = "minmax" to show max and min value
+plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, type = "int", mdrt.values = "meansd") + theme_bw() + xlab("Habitat Impact") + ylab("Timeline (days)\n") + ggtitle("Marginal Effect of Interaction Term")
+#Can use the scale function to "mean-center" the data
+#Is the sum of alpha 1 (google sentiment) and alpha 3 (interaction term) different than zero
+#restricted vs unrestricted model. 
+
+
+reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter_2 <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
+summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter_2)
+
+test1 <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
+test3 <- lm(TimelineDays ~ View_Score + Google_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
+
+summary(test3)
+
+#Covariance
+vcov(test3)
+
+#Plot of marginal effect of interaction term. Can use mdrt.values = "minmax" to show max and min value
+
+plot_model(test1, type = "int", mdrt.values = "meansd") + theme_bw() + xlab("Habitat Impact") + ylab("Timeline (days)\n") + ggtitle("Marginal Effect of Interaction Term")
+
+
 #Can use the scale function to "mean-center" the data
 #Is the sum of alpha 1 (google sentiment) and alpha 3 (interaction term) different than zero
 #restricted vs unrestricted model. 
@@ -491,8 +580,6 @@ dwplot(combined_reg %>%
           legend.background = element_rect(colour = "grey60"),
           legend.title.align = .5)
   
-
-
 
 ```
 
@@ -720,4 +807,33 @@ summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 dwplot(tidy(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter))
 ```
 
+###########
 
+```{r tests}
+
+d <- iris
+o1=ggplot(d, aes(x=d$Sepal.Length, y=d$Sepal.Width))+geom_smooth(method=lm,alpha=0.25,col='seagreen',lwd=0.1) +ylim(0,8)+xlim(0,8)+
+    geom_point(shape=23,fill="black",size=0.2)+theme_bw()+theme(plot.background = element_blank(),panel.grid.major = element_blank()
+                                                                ,panel.grid.minor = element_blank()) +labs(x="bla bla",y="bla bla")+
+    theme(axis.title.x = element_text(face="bold", size=8),axis.text.x = element_text(size=5))+
+    theme(axis.title.y = element_text(face="bold", size=8),axis.text.y = element_text(size=5))+
+    theme(plot.title = element_text(lineheight=.8, face="bold",size=8))+theme(
+        panel.background = element_rect(fill = "transparent",colour = NA), 
+        panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())
+o2=ggplot(d, aes(x=d$Sepal.Length, y=d$Petal.Length))+geom_smooth(method=lm,alpha=0.25,col='seagreen',lwd=0.1) +ylim(0,8)+xlim(0,8)+
+    geom_point(shape=23,fill="black",size=0.2)+theme_bw()+theme(plot.background = element_blank(),panel.grid.major = element_blank()
+                                                                ,panel.grid.minor = element_blank()) +labs(x="bla bla",y="bla bla")+
+    theme(axis.title.x = element_text(face="bold", size=8),axis.text.x = element_text(size=5))+
+    theme(axis.title.y = element_text(face="bold", size=8),axis.text.y = element_text(size=5))+
+    theme(plot.title = element_text(lineheight=.8, face="bold",size=8))+theme(
+        panel.background = element_rect(fill = "transparent",colour = NA), 
+        panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())
+png(bg = "transparent")
+grid.arrange(o1,o2,ncol=1)
+dev.copy(png,"graph.png",width=20,height=15,units="cm",res=800)
+dev.off(dev.prev())
+dev.off()
+
+```
