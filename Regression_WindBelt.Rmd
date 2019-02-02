@@ -107,7 +107,7 @@ NU_PDFS_R <- "H:/Desktop/NU_PDFS_R"
 dir.create(NU_PDFS_R, showWarnings = TRUE) # if directory already exists, will give warning. Ignore.
 
 # Pull all pdfs directly from Google Drive 
-NU_PDFs_R_id  <- "1alXSN-uUouUNM2cTHq5OS3LSxVhSDa_v"
+NU_PDFs_R_id  <-  "1alXSN-uUouUNM2cTHq5OS3LSxVhSDa_v"
 NU_PDFs_R_folder <- googledrive::drive_ls(googledrive::as_id(NU_PDFs_R_id))
 
 # function to download all lexisUni pdfs
@@ -305,7 +305,6 @@ head(projects_words_google)
 
 ```{r words_per project}
 
-
 projects_words_nu_totalwords <- projects_words_NU %>% 
   group_by(document) %>% 
   summarise(word_count_per_project = n())
@@ -400,7 +399,7 @@ projects_score_bind_NU %>%
   filter(document == "ArranzWindTuxedo_Energos_1.PDF")
 
 #### Google ####
-projects_score_bind_google <- projects_words_count_google %>% 
+projects_score_bind_google <- projects_words_count_google %>%
   left_join(get_sentiments("afinn"), by = "word") %>% 
   filter(score != "NA")
 
@@ -458,10 +457,12 @@ View(head(total_sentiment_with_stats_google))
 #### NU ####
 
 #Convert to data frame
+# total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
 
-total_sentiment_NU_df = as.data.frame(total_sentiment_NU)
-# total_sentiment_NU_df = as.data.frame(total_sentiment_with_stats_NU)
-View(total_sentiment_NU_df)
+total_sentiment_NU_df = as.data.frame(total_sentiment_with_stats_NU) %>% 
+  select(-variance, -standard_dev)
+
+# View(total_sentiment_NU_df)
 # View to To ensure the project name from Ventyx matches properly with the document name in total_sentiment_NU
     # View(total_sentiment_NU_df)
     # View(ventyx_df)
@@ -493,12 +494,16 @@ ventyx_df_NU_Sen <- rename(ventyx_df_NU_Sen, NU_Sentiment=totals)
 length(unique(ventyx_df_NU_Sen$document)) # includes NA as a unique(document) NU scores since many projects do not have sentiment scores
 length(unique(total_sentiment_NU_df$document)) # excludes NA as a document
 
+#Remove variance and sd before merge
+# ventyx_df_NU_Sen <- ventyx_df_NU_Sen %>% 
+#   select(-variance, -standard_dev)
 
 #### Adding in Google #####
 #Convert to data frame
 
-total_sentiment_google_df = as.data.frame(total_sentiment_google)
-# total_sentiment_google_df = as.data.frame(total_sentiment_with_stats_google)
+# total_sentiment_google_df = as.data.frame(total_sentiment_google)
+total_sentiment_google_df = as.data.frame(total_sentiment_with_stats_google) %>% 
+    select(-variance, -standard_dev)
 
 #Remove white space in order to perform merge (google data has extra white spaces)
 total_sentiment_google_df$document <- gsub(" ", "", total_sentiment_google_df$document, fixed = TRUE)
@@ -508,8 +513,19 @@ ventyx_df_google_Sen <- merge(ventyx_df, total_sentiment_google_df, by.x ="Proje
 #Rename "totals" columns
 ventyx_df_google_Sen <- rename(ventyx_df_google_Sen, Google_Sentiment=totals)
 
+#Remove variance and sd before merge
+
+# ventyx_df_google_Sen <- ventyx_df_google_Sen %>% 
+#   select(-variance, -standard_dev)
+
+```
+
+```{r merge ventyx_google_&_ventyx_NU}
+
 #### Combined ####
 ventyx_df_NU_google_Sen <- merge(ventyx_df_NU_Sen, total_sentiment_google_df, by.x = "ProjectName", by.y = "document", all = TRUE)
+
+dim(total_sentiment_google_df)
 
 ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>% 
   rename(Google_Sentiment=totals) %>% 
@@ -521,6 +537,8 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
   filter(TimelineDays > 0)
 
 length(unique(ventyx_df_NU_google_Sen$ProjectName))
+names(ventyx_df_NU_google_Sen)
+dim(ventyx_df_NU_google_Sen)
 
 ### For descriptive stats
 
@@ -678,19 +696,17 @@ length(ventyx_df_NU_google_Sen$ProjectName)
 
 write_csv(ventyx_df_NU_google_Sen, "G:/Data/ventyx_df_NU_google_Sen.csv")
 
-
 ```
 
 
-
-###########
-# Run Regressions
-########
+###################
+# Run Regressions #
+###################
 
 
 ```{r prep}
 
-read_csv("G:/Data/ventyx_df_NU_google_Sen.csv")
+# read_csv("G:/Data/ventyx_df_NU_google_Sen.csv")
 
 renamed_variables <- c(View_Score = "View Score",
                         Google_Sentiment = "Google News Publicity score",
@@ -705,58 +721,6 @@ renamed_variables <- c(View_Score = "View Score",
 ```
 
 ### NA Sentiment scores coded as '0' - w/ interaction term
-#### NU only 
-```{r R7}
-
-####7. All variables included -- using only NU scores and an interaction between high-low and NU sentiment. N/A scores coded as "0".
-reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
-
-
-summ(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-
-# 896 observations - ventyx_df_NU_google_Sen has 902 but 6 were removed as they were missing values (one more of the variables had an NA)
-
-
-reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter
-summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-# dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
-#   theme_bw()+
-#   labs(x = "timeline")+
-
-str(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-
-dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter,
-       dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
-  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
-    theme_bw()+
-  labs(x = "timeline (days)")
-
-regression2 <- tidy(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-
-dwplot(regression2[!grepl("^State*", regression2$term),] %>%  relabel_predictors(renamed_variables),
-   dot_args = list(colour = "firebrick"),
-   whisker_args = list(colour = "firebrick"))+
-  labs(x = "Timeline (days)", y = "")+
-  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
-  theme_classic()+
-  ggtitle("Regression output: all variables, using only NU scores\n and interaction term. N/A scores coded as 0:")+
-  theme(legend.background = element_rect(colour="grey80"))
-  
-#Results: significance found in capacity (0.07323)
-#NU_Sentiment: 0.505
-#H_L_W: 0.643
-#Interaction: 0.26455
-
-# 01/20/18 - With added text from NU
-#Results: significance found in capacity (0.05121)
-#NU_Sentiment: 0.539
-#H_L_W: 0.954
-#Interaction: 0.56229
-
-
-
-```
 
 ##### Google only
 ```{r R9}
@@ -810,7 +774,6 @@ dwplot(regression3[!grepl("^State*", regression3$term),] %>%
 
 ```{r separatedplots}
 
-
 library(RColorBrewer)
 
 # View(regression1)
@@ -819,8 +782,8 @@ length(ventyx_df_google_Sen)
 
 dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
  relabel_predictors(renamed_variables), 
-   dot_args = list(colour = "forestgreen", lwd = 1.5),
-   whisker_args = list(colour = "forestgreen", lwd = 0.8)
+   dot_args = list(colour = "#93c47e", lwd = 1.5),
+   whisker_args = list(colour = "#93c47e", lwd = 0.8)
    )+
   labs(x = "Timeline (days)", y = "")+
   ggplot2::geom_vline(xintercept = 0, colour = "grey80", linetype = 2)+
@@ -846,6 +809,58 @@ dwplot(regression3[!grepl("^State*|H_L_WLow|Google_Sentiment|Google_Sentiment:H_
         axis.text.y = element_text(size = 11, hjust=1),
         axis.text.x = element_text(size = 11, hjust=1),
         axis.title.x.bottom = element_text(size=13, vjust = -1))
+```
+#### NU only 
+```{r R7}
+
+####7. All variables included -- using only NU scores and an interaction between high-low and NU sentiment. N/A scores coded as "0".
+reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays ~ View_Score + NU_Sentiment + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*NU_Sentiment, data=ventyx_df_NU_google_Sen)
+
+
+summ(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+# 896 observations - ventyx_df_NU_google_Sen has 902 but 6 were removed as they were missing values (one more of the variables had an NA)
+
+
+reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter
+summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+# dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)+
+#   theme_bw()+
+#   labs(x = "timeline")+
+
+str(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+summary(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+dwplot(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter,
+       dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+    theme_bw()+
+  labs(x = "timeline (days)")
+
+regression2 <- tidy(reg_TLD_ZEROES_VS_NSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+dwplot(regression2[!grepl("^State*", regression2$term),] %>%  relabel_predictors(renamed_variables),
+   dot_args = list(colour = "firebrick"),
+   whisker_args = list(colour = "firebrick"))+
+  labs(x = "Timeline (days)", y = "")+
+  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
+  theme_classic()+
+  ggtitle("Regression output: all variables, using only NU scores\n and interaction term. N/A scores coded as 0:")+
+  theme(legend.background = element_rect(colour="grey80"))
+  
+#Results: significance found in capacity (0.07323)
+#NU_Sentiment: 0.505
+#H_L_W: 0.643
+#Interaction: 0.26455
+
+# 01/20/18 - With added text from NU
+#Results: significance found in capacity (0.05121)
+#NU_Sentiment: 0.539
+#H_L_W: 0.954
+#Interaction: 0.56229
+
+
+
 ```
 
 

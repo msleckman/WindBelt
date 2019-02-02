@@ -9,8 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-
 ###########
 # Run Regressions
 ########
@@ -18,8 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r prep}
 
 
-
-source(file = 'Regression_Windbelt_processing_markdown.Rmd')
+# source(file = 'Regression_Windbelt_processing_markdown.Rmd')
 
 
 #### Packages 
@@ -55,7 +52,11 @@ library(jtools)
 install.packages("sjPlot")
 library(sjPlot)
 
+```
 
+```{r ventyx}
+
+library(RColorBrewer)
 
 ventyx_df_NU_google_Sen <- read_csv("G:/Data/ventyx_df_NU_google_Sen.csv")
 
@@ -83,19 +84,45 @@ reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDays
 names(ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-# summ(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-  
-## note: wen env.members is present, get a google_sentiment p value=0.01029 
-  ## when env.members is NOT present, get a google_sentiment p value=0.01023 
-  ## coef. for google.sentiment stays same 
+require(jtools)
+View(jtools::summ(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter))
+
+      ## note: wen env.members is present, get a google_sentiment p value=0.01029 
+      ## when env.members is NOT present, get a google_sentiment p value=0.01023 
+      ## coef. for google.sentiment stays same 
+
+####
+#Results: significance found in Google sentiment (0.01327) and capacity (0.09445)
+#H_L_W: 0.63589
+#Interaction: 0.204
+
+####
+#  With added text and removal of capacity/timelinedays  01/21/18
+#Results: significance found in Google sentiment (0.01023) and capacity (0.06793)
+#H_L_W: 0.54475
+#Interaction: 0.18378
+
+####
+# with added text and removal of capacity/timeline and using weighted mean sentiment score: 02/01/19
+# 896 values analyzed
+# results: significance found in Google sentiment (0.0098) and capacity (0.079)
+# H_L_W: 0.5
+# overall pvalue: 0.0001483 R2: 0.03
+
+```
+
+```{r official_reg_ploted}
 
 ## everything
-dwplot(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
+regression3 <- tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+write.csv(regression3, "G:/Data/Regression_results_for_FR")
+
+dwplot(regression3, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
     theme_bw()+
   ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
   labs(x = "Timeline (days)")
 
-regression3 <- tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 
 # Main variables
 dwplot(regression3[!grepl("^State*", regression3$term),] %>%  
@@ -110,30 +137,13 @@ dwplot(regression3[!grepl("^State*", regression3$term),] %>%
   theme(legend.background = element_rect(colour="grey80"))
 
 
-#Results: significance found in Google sentiment (0.01327) and capacity (0.09445)
-#H_L_W: 0.63589
-#Interaction: 0.204
-####
-#  With added text and removal of capacity/timelinedays  01/21/18
-#Results: significance found in Google sentiment (0.01023) and capacity (0.06793)
-#H_L_W: 0.54475
-#Interaction: 0.18378
-####
-
-
-
 ```
 
  
 
 ```{r separated_plots_variables}
 
-
-library(RColorBrewer)
-
-# View(regression1)
-
-length(ventyx_df_google_Sen)
+dim(ventyx_df_google_Sen)
 
 jpeg("largevar.jpg", width = 1000, height = 600, units = "px", pointsize = 20, quality = 1000)
 dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
