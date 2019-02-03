@@ -18,7 +18,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # source(file = 'Regression_Windbelt_processing_markdown.Rmd')
 
-
 #### Packages 
 #install.packages("pdftools")
 library(pdftools)
@@ -72,7 +71,6 @@ renamed_variables <- c(View_Score = "View Score",
                        
 ```
 
-
 ###I OFFICIAL RUNS
 #### NA Sentiment scores coded as '0' - w/ interaction term
 ##### Google only
@@ -85,7 +83,7 @@ names(ventyx_df_NU_google_Sen)
 
 summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 require(jtools)
-View(jtools::summ(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter))
+jtools::summ(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 
       ## note: wen env.members is present, get a google_sentiment p value=0.01029 
       ## when env.members is NOT present, get a google_sentiment p value=0.01023 
@@ -125,7 +123,7 @@ dwplot(regression3, dot_args = list(colour = "firebrick"), whisker_args = list(c
 
 
 # Main variables
-dwplot(regression3[!grepl("^State*", regression3$term),] %>%  
+dw_plot_2 <- dwplot(regression3[!grepl("^State*", regression3$term),] %>%  
    relabel_predictors(renamed_variables), 
    dot_args = list(colour = "darkgreen"),
    whisker_args = list(colour = "darkgreen")
@@ -134,7 +132,17 @@ dwplot(regression3[!grepl("^State*", regression3$term),] %>%
   ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
   theme_classic()+
   # ggtitle("Regression output: all variables, using only Google scores \n and interaction term. N/A scores coded as 0:")+
-  theme(legend.background = element_rect(colour="grey80"))
+  theme(
+    # legend.background = element_rect(colour="grey80"),
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+  )
+  
+ggsave(dw_plot_2, filename = "tr_tst3.png",  bg = "transparent")
 
 
 ```
@@ -145,25 +153,52 @@ dwplot(regression3[!grepl("^State*", regression3$term),] %>%
 
 dim(ventyx_df_google_Sen)
 
-jpeg("largevar.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000)
-dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
+# png("largevar_trans2.png", width = 1200, height = 700, units = "px", pointsize = 35, bg = "transparent")
+
+dw_plot3 <- 
+  dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
    relabel_predictors(renamed_variables), 
    dot_args = list(colour = "#6fa4dc", lwd = 5),
-   whisker_args = list(colour = "#6fa4dc", lwd = 1.5)
+   whisker_args = list(colour = "#6fa4dc", lwd = 1.5),
+   vline = geom_vline(xintercept = 0, colour = "white", linetype = 2, lwd = 1.5)
    )+
+  # ggplot2::geom_vline(xintercept = 0, colour = "white", linetype = 2, lwd = 1.5,)+
   labs(x = "Timeline (days)", y = "")+
-  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2, lwd = 1)+
   theme_classic()+
   # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
-  theme(legend.background = element_rect(colour="black"),
-        axis.text.y = element_text(size = 20, hjust=1, colour = "black"),
-        axis.text.x = element_text(size = 20, hjust=1, colour = "black"),
-        axis.title.x.bottom = element_text(size=24, vjust = -2,  margin = margin(t = -2, r = 20, b = 35, l = 0)),
+  theme(
+    # legend.background = element_rect(colour="black"),
+        axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
+        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+        axis.ticks = element_line(size = 2, colour = "white"),
+        # axis.ticks.margin =  unit(c(1,-1),'cm'),
+        axis.ticks.length=unit(0.2,"cm"),
         # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
-        axis.line = element_line(colour = 'black', size = 1))
+        axis.line = element_line(colour = 'white', size = 1.5),
+    # legend.background = element_rect(colour="grey80"),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+    )
+dw_plot3
+
+ggsave(dw_plot3, filename = "Large_var_plot.png",  bg = "transparent", width = 14, height = 7.3)
+
         
 dev.off()
 
+
+geom_vline()
+
+```
+
+```{r plot2}
 
 #### transparent background
 jpeg("largevar_trans.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000, bg = "transparent")
@@ -193,8 +228,6 @@ dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianInco
         
 dev.off()
 
-
-
 setwd("G:/Deliverables/")
 getwd()
 
@@ -212,7 +245,8 @@ dwplot(regression3[!grepl("^State*|H_L_WLow|Google_Sentiment|Google_Sentiment:H_
   theme(legend.background = element_rect(colour="black"),
         axis.text.y = element_text(size = 16, hjust=1, colour = "black",),
         axis.text.x = element_text(size = 16, hjust=1, colour = "black"),
-        axis.title.x.bottom = element_text(size=18, vjust = -2,  margin = margin(t = -2, r = 20, b = 20, l = 0)))
+        axis.title.x.bottom = element_text(size=18, vjust = -2,
+                                           margin = margin(t = -2, r = 20, b = 20, l = 0)))
 
 dev.off()
 
@@ -225,17 +259,51 @@ library(jtools)
 vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
 
 jpeg("interaction_graph.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000, bg = "transparent")
-plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter,
-           type = "int", mdrt.values = "meansd") +
-  xlab("Google News Publicity Score")+ylab("Timeline (days)\n") +
-  ggtitle("Marginal Effect of Interaction Term")+
-   theme_classic()+
+
+interaction_term_plot<-
+  plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter,
+             type = "int", mdrt.values = "meansd",
+             axis.title = "", title = "", 
+             legend.title = "",
+             line.size = 1.5,
+             colors = c("#cc4125", "#70ad47")
+            )+
+  xlab("Google News Publicity Score")+ylab("Predicted Value of Timeline (days)\n") +
+  # ggtitle("Marginal Effect of Interaction Term")+
   # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
-  theme(legend.background = element_rect(colour="black"),
-        axis.text.y = element_text(size = 16, hjust=1, colour = "black"),
-        axis.text.x = element_text(size = 16, hjust=1, colour = "black"),
-        axis.title.x.bottom = element_text(size=18, vjust = -2,  margin = margin(t = -2, r = 20, b = 20, l = 0)),
-        axis.title.y.right = element_text(size=25, vjust = -2))
+  theme_classic()+
+  theme(
+        axis.title.y.right = element_text(size=25, vjust = -2, colour = "white"),
+        axis.title.y.left = element_text(size=25, vjust = -2, colour = "white"),
+        axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
+        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,  margin = margin(t = -2, r = 20, b = 35, l = 0), colour = "white"),
+        axis.ticks = element_line(size = 2, colour = "white"),
+        # axis.ticks.margin =  unit(c(1,-1),'cm'),
+        axis.ticks.length=unit(0.2,"cm"),
+        axis.line = element_line(colour = 'white', size = 2),
+    # legend.background = element_rect(colour="grey80"),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        # legend.key = element_blank(), #element_rect(colour = NA, fill = "transparent"),
+        legend.background = element_blank(), # element_rect(fill = "transparent"), # get rid of legend bg
+        # legend.box.background = element_rect(fill = "transparent", color = "white"), # get rid of legend panel bg
+        legend.text = element_text(colour = "white", size = 20),
+        # legend.key = element_rect(colour = NA, fill = NA),
+    legend.box.background = element_blank()
+    )
+    # ,
+    #     legend.box =  
+    #     
+    )
+
+dw_plot3
+
+ggsave(interaction_term_plot, filename = "InteractionTerm_plot.png",  bg = "transparent", width = 14, height = 7.3)
+
+        # )
   # )
         dev.off()
 

@@ -169,6 +169,8 @@ ventyx_df$document <- gsub(" ", "", ventyx_df$document, fixed = TRUE)
 #For MAC and BREN computers:
 google_df <- read_csv("~/Desktop/Copy_google_scraping_01-08-19.csv")
 
+View(google_df[grep("Osborn*", google_df$ProjectName),])
+
 #For Alex:
 #google_df <- read_csv("C:/Users/airvi/Desktop/google_scraping_01-08-19.csv")
 
@@ -399,11 +401,13 @@ projects_score_bind_NU %>%
   filter(document == "ArranzWindTuxedo_Energos_1.PDF")
 
 #### Google ####
+
 projects_score_bind_google <- projects_words_count_google %>%
   left_join(get_sentiments("afinn"), by = "word") %>% 
   filter(score != "NA")
 
-#View(projects_score_bind)
+# View(projects_score_bind_google[grep("Osborn*", projects_score_bind_google$document),])  
+  # filter(document == "^Osborn*"))
 
 # Note: Many of the scores per words are NA simply because that word does not exist. 
 ```
