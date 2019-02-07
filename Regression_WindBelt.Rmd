@@ -121,10 +121,10 @@ pdf_downloader <- function(templates_dribble, local_folder){
 
 
 #For MAC and BREN computers:
-ventyx_projects <- read_csv("~/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
+#ventyx_projects <- read_csv("~/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
 
 #For Alex:
-#ventyx_projects <- read_csv("C:/Users/airvi/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
+ventyx_projects <- read_csv("C:/Users/airvi/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
 
 #To view the dataset:
 #View(ventyx_projects)
@@ -140,12 +140,12 @@ ventyx_df$document <- gsub(" ", "", ventyx_df$document, fixed = TRUE)
 #Before running this code, make sure you have the Google scraping dataset saved on your desktop. The file path that the "read_csv" function accesses should be where the file is located on your desktop. 
 
 #For MAC and BREN computers:
-google_df <- read_csv("~/Desktop/google_scraping_01-08-19.csv")
+#google_df <- read_csv("~/Desktop/google_scraping_01-08-19.csv")
 
 View(google_df[grep("Osborn*", google_df$ProjectName),])
 
 #For Alex:
-#google_df <- read_csv("C:/Users/airvi/Desktop/google_scraping_01-08-19.csv")
+google_df <- read_csv("C:/Users/airvi/Desktop/google_scraping_01-08-19.csv")
 
 #To view the dataset:
 #View(google_df)
@@ -157,10 +157,10 @@ View(google_df[grep("Osborn*", google_df$ProjectName),])
 
 ```{r nexus_directory_setup}
 #For MAC and BREN computers:
-pdf_directory <- '~/Desktop/NU_PDFS_R'
+#pdf_directory <- '~/Desktop/NU_PDFS_R'
 
 #For Alex:
-#pdf_directory <- "C:/Users/airvi/Documents/Bren/GroupProject/NU_PDFS_R"
+pdf_directory <- "C:/Users/airvi/Documents/Bren/GroupProject/NU_PDFS_R"
 
 #For Delaney:
 #pdf_directory <- "D:/Desktop/All_LexisUni_PDFs"
@@ -495,16 +495,16 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
 ####Add environmental memberships data
 ```{r env_members}
 #For Alex
-#zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/zip_code_database.csv")
+zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/zip_code_database.csv")
 
 #For Bren computers
-zip_conversion <- read_csv("~/Desktop/zip_code_database.csv")
+#zip_conversion <- read_csv("~/Desktop/zip_code_database.csv")
 
 #For Alex
-#memberships <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/membership_data_combined.csv")
+memberships <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/membership_data_combined.csv")
 
 #For Bren computers
-memberships <- read_csv("~/Desktop/membership_data_combined.csv")
+#memberships <- read_csv("~/Desktop/membership_data_combined.csv")
 
 #Make sure all zip codes are 5 digits
 memberships$zip <- sprintf("%05d", memberships$zip)
@@ -1157,6 +1157,14 @@ reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDay
 
 summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+```
+```{r standard_error}
+std <- function(x) sd(x)/sqrt(length(x))
+google_sentiments <- ventyx_df_NU_google_Sen$Google_Sentiment
+mean(google_sentiments) #0.1610461
+std(google_sentiments) #0.01574453
+sd(google_sentiments)
+plot(ventyx_df_NU_google_Sen$TimelineDays, ventyx_df_NU_google_Sen$Google_Sentiment)
 ```
 
 
