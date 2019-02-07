@@ -68,7 +68,7 @@ renamed_variables <- c(View_Score = "View Score",
                         H_L_WLow = "Low Impact Area",
                        'Google_Sentiment:H_L_WLow' = "Low Impact Area * Publicity Score")
                         # H_L_W*NU_Sentiment = "site vs. sentiment interaction"
-                       
+View(ventyx_df_NU_google_Sen) 
 ```
 
 ###I OFFICIAL RUNS
@@ -172,7 +172,8 @@ dw_plot3 <-
         axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
         axis.title.x.bottom = element_text(size=24, vjust = -3.5,
                                            margin = margin(t = -2, r = 20, b = 35, l = 0),
-                                           colour = "white"),
+                                           colour = "white",
+                                           face = "bold"),
         axis.ticks = element_line(size = 2, colour = "white"),
         # axis.ticks.margin =  unit(c(1,-1),'cm'),
         axis.ticks.length=unit(0.2,"cm"),
@@ -186,13 +187,12 @@ dw_plot3 <-
         legend.background = element_rect(fill = "transparent"), # get rid of legend bg
         legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
     )
+
 dw_plot3
 
-ggsave(dw_plot3, filename = "Large_var_plot.png",  bg = "transparent", width = 14, height = 7.3)
+# ggsave(dw_plot3, filename = "Large_var_plot.png",  bg = "transparent", width = 14, height = 7.3)
 
-        
 dev.off()
-
 
 geom_vline()
 
@@ -202,10 +202,12 @@ geom_vline()
 
 #### transparent background
 jpeg("largevar_trans.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000, bg = "transparent")
+
 dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
    relabel_predictors(renamed_variables), 
    dot_args = list(colour = "#6fa4dc", lwd = 5),
-   whisker_args = list(colour = "#6fa4dc", lwd = 1.5)
+   whisker_args = list(colour = "#6fa4dc", lwd = 1.5),
+
    )+
   labs(x = "Timeline (days)", y = "")+
   ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2, lwd = 1)+
@@ -219,13 +221,14 @@ dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianInco
     legend.background = element_rect(fill = "transparent"), # get rid of legend bg
     legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
   )
+
   # theme(legend.background = element_rect(colour="black"),
   #       axis.text.y = element_text(size = 18, hjust=1, colour = "black"),
   #       axis.text.x = element_text(size = 18, hjust=1, colour = "black"),
   #       axis.title.x.bottom = element_text(size=20, vjust = -2,  margin = margin(t = -2, r = 20, b = 35, l = 0)),
   #       # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
   #       axis.line = element_line(colour = 'black', size = 1))
-        
+
 dev.off()
 
 setwd("G:/Deliverables/")
@@ -254,34 +257,62 @@ dev.off()
 
 ```{r marginal effects term}
 
+GP_red <- "#cc4125"
+GP_blue <- "#6fa4dc"
+
+remove.packages("sjPlot")
+install.packages("sjPlot")
+install.packages("broom")
+library(sjPlot)
 library(stats)
+# install.packages("jtools")
 library(jtools)
-vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+vcov <- vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+
+install.packages("effects", "nlme")
+
+effect
+
+interaction()
+
+ggplot(cdat, aes(x=xvals))+
+  geom_line(aes(y))
+
+
 
 jpeg("interaction_graph.jpg", width = 1200, height = 700, units = "px", pointsize = 35, quality = 1000, bg = "transparent")
 
 interaction_term_plot<-
   plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter,
-             type = "int", mdrt.values = "meansd",
+             type = "int", mdrt.values = "meansd", 
              axis.title = "", title = "", 
              legend.title = "",
              line.size = 1.5,
-             colors = c("#cc4125", "#70ad47")
-            )+
-  xlab("Google News Publicity Score")+ylab("Predicted Value of Timeline (days)\n") +
+             colors = c(GP_red, GP_blue),
+             alpha = 0.05,
+             # ci.lvl = list(ci.lvl = 0.95, alpha = 0.1, line.size = 0.5)
+             # line.size = 0.5,
+             # se = T
+             )+
+  # geom_ribbon(aes(ymin = lower, ymax = higher), alpha = .35)+
+  xlab("Google News Publicity Score")+ylab("Predicted Value of Timeline (days)\n")+
   # ggtitle("Marginal Effect of Interaction Term")+
   # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
   theme_classic()+
   theme(
-        axis.title.y.right = element_text(size=25, vjust = -2, colour = "white"),
-        axis.title.y.left = element_text(size=25, vjust = -2, colour = "white"),
+        # axis.title.y.right = element_text(size=25, vjust = -2, colour = "white", face="bold"),
+        axis.title.y.left = element_text(size=25, vjust = -2, colour = "white", face="bold"),
         axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
         axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
-        axis.title.x.bottom = element_text(size=24, vjust = -3.5,  margin = margin(t = -2, r = 20, b = 35, l = 0), colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white",
+                                           face="bold"),
         axis.ticks = element_line(size = 2, colour = "white"),
         # axis.ticks.margin =  unit(c(1,-1),'cm'),
         axis.ticks.length=unit(0.2,"cm"),
-        axis.line = element_line(colour = 'white', size = 2),
+        axis.line = element_line(colour = 'white', size = 1.5),
     # legend.background = element_rect(colour="grey80"),
         panel.background = element_rect(fill = "transparent"), # bg of the panel
         plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
@@ -294,13 +325,14 @@ interaction_term_plot<-
         # legend.key = element_rect(colour = NA, fill = NA),
     legend.box.background = element_blank()
     )
-    # ,
+
+# 
     #     legend.box =  
     #     
-    )
+    # )
 
 dw_plot3
-
+interaction_term_plot
 ggsave(interaction_term_plot, filename = "InteractionTerm_plot.png",  bg = "transparent", width = 14, height = 7.3)
 
         # )

@@ -75,22 +75,33 @@ Read in ventyx csv
 ```{r ventyx_dataset}
 
 
+
 #Change when working from G drive
-home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
-#home_folder <- "G:/Data/VENTYX_DATASET/"
+# home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
+# home_folder <- "G:/Data/"
+# 
+# 
+# # Old Ventyx dataset - to archive
+# # Ventyx_dataset <- read_csv(file = "G:/Data/VENTYX_DATASET/ventyx_converted_11_27_2018_PopDensity_Income_Viewshed_lowhighimpact_doc_names.csv") %>% 
+# #   filter(!is.na(lr_tif))
+# 
+# # Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_with_NU_google_Sentiments_01.18.19.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score))
 
+# Ventyx_dataset$Household_MedianIncome <- as.numeric(Ventyx_dataset$Household_MedianIncome)
+ 
+# View(Ventyx_dataset)
 
-# Old Ventyx dataset - to archive
-# Ventyx_dataset <- read_csv(file = "G:/Data/VENTYX_DATASET/ventyx_converted_11_27_2018_PopDensity_Income_Viewshed_lowhighimpact_doc_names.csv") %>% 
-#   filter(!is.na(lr_tif))
+# dim(Ventyx_dataset)
 
-Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_with_NU_google_Sentiments_01.18.19.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score))
+```
+
+```{r turn_on_for bren_comp}
+
+home_folder <- "G:/Data/"
+Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_NU_google_Sen.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score))
+
 Ventyx_dataset$Household_MedianIncome <- as.numeric(Ventyx_dataset$Household_MedianIncome)
 
-
-View(Ventyx_dataset)
-
-dim(Ventyx_dataset)
 
 ```
 
@@ -141,7 +152,7 @@ ventyx_nonlowimpact <- Ventyx_dataset %>%
   group_by(State) %>% 
   summarise(count=n())
 
-View(ventyx_nonlowimpact)
+# View(ventyx_nonlowimpact)
 
 # Ventyx_dataset_lowhighimpact_totals <- Ventyx_dataset %>%
 #   select(ProjectName, ProjectDeveloper, State, lr_tif) %>%
@@ -224,15 +235,48 @@ ImpactNUSentimentPlot <- ggplot(NUSen_nozeros, aes(x=as.factor(H_L_W), y = NU_Se
 
 ImpactGoogleSentimentPlot <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment))+
 #<<<<<<< HEAD
-  geom_boxplot(alpha = 0.2, linetype = "dashed", fill = NA)+
+  geom_boxplot(alpha = 0.5, outlier.colour = "black",  linetype = "dashed", fill = NA, color="black")+
   xlab("Impact")+
   ylab("Publicity Score")+
   theme_classic()+
-  theme(axis.title.x=element_blank(), text = element_text(size = 20), axis.text.y = element_blank(), axis.ticks.y = element_blank())+
+  # theme(axis.title.x=element_blank(), text = element_text(size = 20), axis.text.y = element_blank(), axis.ticks.y = element_blank())+
+  guides(fill=FALSE)+
+  scale_x_discrete(labels = c("Other", "Low"))+
+  geom_boxplot(data = GoogleSen_fake, aes(x=as.factor(H_L_W), y = fake_sentiment, fill = H_L_W))
++
+  
+ImpactGoogleSentimentPlot_trans <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment))+
+#<<<<<<< HEAD
+  geom_boxplot(alpha = 0.5, outlier.colour = "black",  linetype = "dashed", fill = NA, color="black")+
+  xlab("Impact")+
+  ylab("Publicity Score")+
+  theme_classic()+
+  # theme(axis.title.x=element_blank(), text = element_text(size = 20), axis.text.y = element_blank(), axis.ticks.y = element_blank())+
   guides(fill=FALSE)+
   scale_x_discrete(labels = c("Other", "Low"))+
   geom_boxplot(data = GoogleSen_fake, aes(x=as.factor(H_L_W), y = fake_sentiment, fill = H_L_W))+
-  theme()
+  theme(
+  axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
+        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+            axis.title.y.left = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+        axis.ticks = element_line(size = 2, colour = "white"),
+        # axis.ticks.margin =  unit(c(1,-1),'cm'),
+        axis.ticks.length=unit(0.2,"cm"),
+        # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
+        axis.line = element_line(colour = 'white', size = 1.5),
+    # legend.background = element_rect(colour="grey80"),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+    )
   
 
 ImpactGoogleSentimentPlot
@@ -386,12 +430,44 @@ sen_hist
 ## Make a prettier histogram
 
 #<<<<<<< HEAD
-sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
+sen_hist_comb_og <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
   geom_histogram(alpha = 0.5, bins=15, fill = "#6fa4dc") +
   xlab("Publicity Score")+
   ylab("Frequency")+
   theme_classic()+
   theme(text=element_text(size = 20))
+
+# sen_hist_comb_og
+
+
+sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
+  geom_histogram(alpha = 0.5, bins=15, fill = "#6fa4dc") +
+  xlab("Publicity Score")+
+  ylab("Frequency")+
+  theme_classic()+
+  theme(text=element_text(size = 20),
+    # legend.background = element_rect(colour="black"),
+        axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
+        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+            axis.title.y.left = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+        axis.ticks = element_line(size = 2, colour = "white"),
+        # axis.ticks.margin =  unit(c(1,-1),'cm'),
+        axis.ticks.length=unit(0.2,"cm"),
+        # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
+        axis.line = element_line(colour = 'white', size = 1.5),
+    # legend.background = element_rect(colour="grey80"),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+    )
   
 #=======
 # sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment, fill = H_L_W)) +
@@ -399,6 +475,9 @@ sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
 #>>>>>>> aa8cc158856fe28a9c8c51f7a871e69c74008b86
 
 sen_hist_comb
+
+ggsave(sen_hist_comb, filename = "sen_hist_comb.png",  bg = "transparent", width = 14, height = 7.3, path = "G:/Data/")
+
 
 sen_qq <- ggplot(Ventyx_nozeros, aes(sample = Google_Sentiment)) +
   geom_qq() +
