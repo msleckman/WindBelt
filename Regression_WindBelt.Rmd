@@ -50,6 +50,8 @@ library(knitr)
 library(readr)
 library(stringr)
 library(gsubfn)
+library(sjPlot)
+library(car)
 # install.packages("tidyverse")
 # install.packages("tidytext")
 # library(tm.plugin.lexisnexis)
@@ -64,10 +66,10 @@ library(gsubfn)
 
 # Create folder in desktop for pdfs. Decided to set on desktop to be compatible with all computers.
 # If working on a Bren computer, use this:
-NU_PDFS_R <- "H:/Desktop/NU_PDFS_R"
+#NU_PDFS_R <- "H:/Desktop/NU_PDFS_R"
 
 # Alex's Directory:
-#NU_PDFS_R <- "C:/Users/airvi/Documents/Bren/GroupProject/NU_PDFS_R"
+NU_PDFS_R <- "C:/Users/airvi/Documents/Bren/GroupProject/NU_PDFS_R"
 
 dir.create(NU_PDFS_R, showWarnings = TRUE) # if directory already exists, will give warning. Ignore.
 
@@ -121,10 +123,10 @@ pdf_downloader <- function(templates_dribble, local_folder){
 
 
 #For MAC and BREN computers:
-#ventyx_projects <- read_csv("~/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
+ventyx_projects <- read_csv("~/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
 
 #For Alex:
-ventyx_projects <- read_csv("C:/Users/airvi/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
+#ventyx_projects <- read_csv("C:/Users/airvi/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
 
 #To view the dataset:
 #View(ventyx_projects)
@@ -140,12 +142,12 @@ ventyx_df$document <- gsub(" ", "", ventyx_df$document, fixed = TRUE)
 #Before running this code, make sure you have the Google scraping dataset saved on your desktop. The file path that the "read_csv" function accesses should be where the file is located on your desktop. 
 
 #For MAC and BREN computers:
-#google_df <- read_csv("~/Desktop/google_scraping_01-08-19.csv")
+google_df <- read_csv("~/Desktop/google_scraping_01-08-19.csv")
 
 View(google_df[grep("Osborn*", google_df$ProjectName),])
 
 #For Alex:
-google_df <- read_csv("C:/Users/airvi/Desktop/google_scraping_01-08-19.csv")
+#google_df <- read_csv("C:/Users/airvi/Desktop/google_scraping_01-08-19.csv")
 
 #To view the dataset:
 #View(google_df)
@@ -157,10 +159,10 @@ google_df <- read_csv("C:/Users/airvi/Desktop/google_scraping_01-08-19.csv")
 
 ```{r nexus_directory_setup}
 #For MAC and BREN computers:
-#pdf_directory <- '~/Desktop/NU_PDFS_R'
+pdf_directory <- '~/Desktop/NU_PDFS_R'
 
 #For Alex:
-pdf_directory <- "C:/Users/airvi/Documents/Bren/GroupProject/NU_PDFS_R"
+#pdf_directory <- "C:/Users/airvi/Documents/Bren/GroupProject/NU_PDFS_R"
 
 #For Delaney:
 #pdf_directory <- "D:/Desktop/All_LexisUni_PDFs"
@@ -451,7 +453,7 @@ length(unique(total_sentiment_NU_df$document)) # excludes NA as a document
 
 #### Google #####
 #Convert to data frame
-total_sentiment_google_df = as.data.frame(total_sentiment_google)
+total_sentiment_google_df = as.data.frame(total_sentiment_with_stats_google)
 #Remove white space in order to perform merge (google data has extra white spaces)
 total_sentiment_google_df$document <- gsub(" ", "", total_sentiment_google_df$document, fixed = TRUE)
 
@@ -495,16 +497,16 @@ ventyx_df_NU_google_Sen <- ventyx_df_NU_google_Sen %>%
 ####Add environmental memberships data
 ```{r env_members}
 #For Alex
-zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/zip_code_database.csv")
+#zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/zip_code_database.csv")
 
 #For Bren computers
-#zip_conversion <- read_csv("~/Desktop/zip_code_database.csv")
+zip_conversion <- read_csv("~/Desktop/zip_code_database.csv")
 
 #For Alex
-memberships <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/membership_data_combined.csv")
+#memberships <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/membership_data_combined.csv")
 
 #For Bren computers
-#memberships <- read_csv("~/Desktop/membership_data_combined.csv")
+memberships <- read_csv("~/Desktop/membership_data_combined.csv")
 
 #Make sure all zip codes are 5 digits
 memberships$zip <- sprintf("%05d", memberships$zip)
@@ -591,9 +593,9 @@ ventyx_df_NU_google_Sen$Sign_Google <- as.factor(ventyx_df_NU_google_Sen$Sign_Go
 
 ventyx_df_NU_google_Sen$Sign_NU <- as.factor(ventyx_df_NU_google_Sen$Sign_NU)
 
-str(ventyx_df_NU_google_Sen)
+#str(ventyx_df_NU_google_Sen)
 
-summary(ventyx_df_NU_google_Sen)
+#summary(ventyx_df_NU_google_Sen)
 
 ### adding normalization to df 
 
@@ -1153,19 +1155,83 @@ dwplot(reg_NSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 
 ```{r R14}
 ####14. Timeline on left-hand side, using Google sentiment. Interaction term between Google and high-low impact. Environmental memberships variable added. N/A scores coded as 0
-reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + H_L_W*Google_Sentiment, data=ventyx_df_NU_google_Sen)
+reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter <- lm(TimelineDays ~ View_Score + Google_Sentiment + members_env + PopDensity_mi + Household_MedianIncome + Capacity + H_L_W + State + Google_Sentiment*H_L_W, data=ventyx_df_NU_google_Sen)
 
 summary(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 dwplot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
 ```
-```{r standard_error}
+
+```{r r14_stats}
 std <- function(x) sd(x)/sqrt(length(x))
 google_sentiments <- ventyx_df_NU_google_Sen$Google_Sentiment
 mean(google_sentiments) #0.1610461
 std(google_sentiments) #0.01574453
 sd(google_sentiments)
 plot(ventyx_df_NU_google_Sen$TimelineDays, ventyx_df_NU_google_Sen$Google_Sentiment)
+
+#Residuals
+hist(resid(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter), main = "", xlab = "Residuals") 
+plot(resid(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter), ylab = "Residuals")
+plot(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter)
+
+#timeline days details
+plot(ventyx_df_NU_google_Sen$TimelineDays)
+mean(ventyx_df_NU_google_Sen$TimelineDays)
+std(ventyx_df_NU_google_Sen$TimelineDays)
+sd(ventyx_df_NU_google_Sen$TimelineDays)
+
+#variance inflation factor (for multicollinearity)
+vif(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter) #none of them higher than 4, so only moderate collinearity that doesn't need to be addressed
+
+#correlation test
+cor.test(ventyx_df_NU_google_Sen$TimelineDays, ventyx_df_NU_google_Sen$Google_Sentiment, method = "pearson") #low correlation between timeline and google sentiment (0.0777)
 ```
+
+```{r r14_interaction}
+
+interaction_term_plot<- plot_model(reg_GSen_VS_PopDen_MedianIncome_Cap_HL_State_Memberships_Inter,
+             type = "int", mdrt.values = "meansd",
+             axis.title = "", title = "", 
+             legend.title = "",
+             line.size = 2, 
+             ci.lvl = 0.95, 
+             alpha = 0.3, 
+             colors = c("red","blue")) +
+  xlab("Google News Publicity Score")+ylab("Predicted Value of Timeline (days)\n") +
+  # ggtitle("Marginal Effect of Interaction Term")+
+  # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
+  #theme_classic() + 
+    theme(
+        axis.title.y.right = element_text(size=25, vjust = -2, colour = "white"),
+        axis.title.y.left = element_text(size=25, vjust = -2, colour = "white"),
+        axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
+        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,  margin = margin(t = -2, r = 20, b = 35, l = 0), colour = "white"),
+        axis.ticks = element_line(size = 2, colour = "white"),
+        # axis.ticks.margin =  unit(c(1,-1),'cm'),
+        axis.ticks.length=unit(0.2,"cm"),
+        axis.line = element_line(colour = 'white', size = 2),
+    # legend.background = element_rect(colour="grey80"),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        # legend.key = element_blank(), #element_rect(colour = NA, fill = "transparent"),
+        legend.background = element_blank(), # element_rect(fill = "transparent"), # get rid of legend bg
+        # legend.box.background = element_rect(fill = "transparent", color = "white"), # get rid of legend panel bg
+        legend.text = element_text(colour = "white", size = 20),
+        # legend.key = element_rect(colour = NA, fill = NA),
+    legend.box.background = element_blank()
+    )
+
+interaction_term_plot 
+ggsave(interaction_term_plot, filename = "InteractionTerm_plot.png",  bg = "transparent", width = 14, height = 7.3)
+
+#"#cc4125", "#70ad47"
+
+
+```
+
 
 
 ## OTHER 
