@@ -30,6 +30,7 @@ library(knitr)
 library(googledrive)
 
 library(effsize)
+library(plotrix)
 
 ```
 
@@ -77,7 +78,7 @@ Read in ventyx csv
 
 
 #Change when working from G drive
-# home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
+ home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
 # home_folder <- "G:/Data/"
 # 
 # 
@@ -97,7 +98,7 @@ Read in ventyx csv
 
 ```{r turn_on_for bren_comp}
 
-home_folder <- "G:/Data/"
+#home_folder <- "G:/Data/"
 Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_NU_google_Sen.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score))
 
 Ventyx_dataset$Household_MedianIncome <- as.numeric(Ventyx_dataset$Household_MedianIncome)
@@ -209,6 +210,16 @@ ByImpact <- Ventyx_dataset %>%
 
 #Box and whisker plot by impact for sentiment?
 
+#By Impact Sentiment for no zeros
+
+ByImpact_nozeros <- Ventyx_nozeros %>% 
+  group_by(H_L_W) %>% 
+  mutate(AvgSen_nozeros = mean(Google_Sentiment)) %>% 
+  select(AvgSen_nozeros, H_L_W) %>% 
+  unique()
+
+View(ByImpact_nozeros)
+
 View(ByImpact)
 
 kable(ByImpact)
@@ -239,11 +250,11 @@ ImpactGoogleSentimentPlot <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y
   xlab("Impact")+
   ylab("Publicity Score")+
   theme_classic()+
-  # theme(axis.title.x=element_blank(), text = element_text(size = 20), axis.text.y = element_blank(), axis.ticks.y = element_blank())+
+  theme(text = element_text(size = 20))+
   guides(fill=FALSE)+
   scale_x_discrete(labels = c("Other", "Low"))+
-  geom_boxplot(data = GoogleSen_fake, aes(x=as.factor(H_L_W), y = fake_sentiment, fill = H_L_W))
-+
+  geom_boxplot(data = GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment, fill = H_L_W))
+
   
 ImpactGoogleSentimentPlot_trans <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment))+
 #<<<<<<< HEAD
@@ -330,7 +341,8 @@ ByGoogleSentiment <- Ventyx_dataset %>%
   mutate(AvgCapacity = mean(Capacity)) %>% 
   mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
   mutate(Avg_Viewscore = mean(View_Score)) %>% 
-  select(TotalProjects, AvgTimeline, LowImpact, HighImpact, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
+  mutate(Avg_Population = mean(PopDensity_mi)) %>% 
+  select(TotalProjects, AvgTimeline, LowImpact, HighImpact, AvgCapacity,  AvgMedianIncome, Avg_Viewscore, Avg_Population) %>% 
    unique()
 
 kable(ByNUSentiment)
@@ -437,7 +449,7 @@ sen_hist_comb_og <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
   theme_classic()+
   theme(text=element_text(size = 20))
 
-# sen_hist_comb_og
+ sen_hist_comb_og
 
 
 sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
@@ -494,10 +506,44 @@ sen_ttest <- t.test(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
 sen_ttest
 #Did not differ significantly (p = 0.58)
 
+sen_ttest_full <- t.test(Google_Sentiment ~ H_L_W, data = Ventyx_dataset)
+sen_ttest_full
+
+effect_sen_full <- cohen.d(Google_Sentiment ~ H_L_W, data = Ventyx_dataset)
+effect_sen_full
+
 effect_sen <- cohen.d(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
 
 
 ```
+
+```{r}
+# More sentiment statistics
+
+GoogleSen_mean <- mean(Ventyx_dataset$Google_Sentiment)
+GoogleSen_mean
+GoogleSenNozeros_mean <- mean(Ventyx_nozeros$Google_Sentiment)
+GoogleSenNozeros_mean
+
+GoogleSen_SE <- std.error(Ventyx_dataset$Google_Sentiment)
+GoogleSen_SE
+GoogleSenNozeros_SE <- std.error(Ventyx_nozeros$Google_Sentiment)
+GoogleSenNozeros_SE
+
+mean(Ventyx_dataset$TimelineDays)
+min(Ventyx_dataset$TimelineDays)
+max(Ventyx_dataset$TimelineDays)
+
+mean(Ventyx_dataset$Capacity)
+mean(Ventyx_dataset$Household_MedianIncome)
+mean(Ventyx_dataset$View_Score)
+mean(Ventyx_dataset$PopDensity_mi)
+
+
+```
+
+
+
 
 ```{r}
 
@@ -525,7 +571,6 @@ delay_ftest <- var.test(TimelineDays ~ H_L_W, data = Ventyx_dataset)
 delay_ttest <- t.test(TimelineDays ~ H_L_W, data = Ventyx_dataset)
 
 delay_ttest
-
 
 
 # p = 0.99
