@@ -1,0 +1,511 @@
+---
+title: "descriptive stats wrangling"
+author: "Margaux Sleckman"
+date: "January 6, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+
+
+#install.packages("pdftools", "devtools")
+library(pdftools)
+library(tm)
+# library(tm.plugin.lexisnexis)
+library(devtools)
+# install.packages("tidytext")
+library(tidytext)
+library(broom)
+# install.packages("tidyverse")
+library(data.table)
+library(tidyverse)
+library(purrr)
+library(lubridate)
+library(knitr)
+
+library(googledrive)
+
+library(effsize)
+library(plotrix)
+
+```
+
+
+
+Read in ventyx csv 
+```{r ventyx_dataset}
+
+#Change when working from G drive
+ home_folder<-"C:/Users/Cristina/Documents/Bren/GP/"
+# home_folder <- "G:/Data/"
+
+```
+
+Wrangle data: remove rows with problems in variables, format columns, etc
+
+```{r }
+
+Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_google_Sen_022219_2.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score)) %>% filter(View_Score>-1) %>% filter(Capacity > 0)
+
+Ventyx_dataset$Household_MedianIncome <- as.numeric(Ventyx_dataset$Household_)
+
+
+```
+
+Find number of projects in each class (cancelled, operating, etc)
+
+```{r}
+
+operating <- Ventyx_dataset %>% 
+  filter(OnlyCancel=="No" & Artificial=="No" & OperatingD=="No")
+
+dim(operating)
+
+cancelled <- Ventyx_dataset %>% 
+  filter(OnlyCancel=="Yes" & Artificial == "No" & OperatingD == "No")
+
+dim(cancelled)
+# Extra project in cancelled (NA income) that should be filtered out
+
+```
+
+Operating: 473
+Cancelled: 396
+
+
+Stats on all projects for operating, all projects for cancelled
+```{r }
+
+## For Operating:
+
+operating_summary <- operating %>%
+  mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>% 
+  mutate(LowProjects = sum(H_L_W == "Low")) %>% 
+  mutate(AvgGoogleSentiment = mean(Google_Sentiment)) %>% 
+  mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgViewscore = mean(View_Score)) %>% 
+  mutate(AvgPopDensity = mean(PopDensity)) %>% 
+  mutate(AvgIncome = mean(Household_MedianIncome)) %>% 
+  select(TotalProjects, LowProjects, AvgGoogleSentiment,
+         AvgCapacity, AvgViewscore, AvgPopDensity, AvgIncome) %>% 
+  unique()
+
+# One project has NA for income
+cancelled_summary <- cancelled %>% 
+   mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>% 
+  mutate(LowProjects = sum(H_L_W == "Low")) %>% 
+  mutate(AvgGoogleSentiment = mean(Google_Sentiment)) %>% 
+  mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgViewscore = mean(View_Score)) %>% 
+  mutate(AvgPopDensity = mean(PopDensity)) %>% 
+  mutate(AvgIncome = mean(Household_MedianIncome)) %>% 
+  select(TotalProjects, LowProjects, AvgGoogleSentiment,
+         AvgCapacity, AvgViewscore, AvgPopDensity, AvgIncome) %>% 
+  unique()
+ 
+
+```
+
+## From here onwards is old code, may need to be updated
+
+
+```{r}
+
+## By Impact:
+
+ByImpact <- Ventyx_dataset %>%
+   select(ProjectName, ProjectDeveloper, State, H_L_W, Capacity, TimelineDays, Household_MedianIncome, View_Score, NU_Sentiment, Google_Sentiment, PopDensity_mi) %>% 
+  group_by(H_L_W) %>% 
+  mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
+  mutate(AvgTimeline = mean(TimelineDays)) %>%
+  #mutate(AvgNexisSentiment = mean(NU_Sentiment)) %>% 
+  mutate(AvgGoogleSentiment = mean(Google_Sentiment)) %>%
+  #mutate(MaxNexisSentiment = max(NU_Sentiment)) %>% 
+  #mutate(MinNexisSentiment = min(NU_Sentiment)) %>% 
+  mutate(MaxGoogleSentiment = max(Google_Sentiment)) %>% 
+  mutate(MinGoogleSentiment = min(Google_Sentiment)) %>% 
+  mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
+  mutate(Avg_Viewscore = mean(View_Score)) %>% 
+  mutate(Avg_PopDensity = mean(PopDensity_mi)) %>% 
+  select(TotalProjects, AvgTimeline,
+         AvgGoogleSentiment, MaxGoogleSentiment, MinGoogleSentiment, AvgCapacity,  AvgMedianIncome, Avg_Viewscore, Avg_PopDensity) %>% 
+   unique()
+
+#Box and whisker plot by impact for sentiment?
+
+#By Impact Sentiment for no zeros
+
+ByImpact_nozeros <- Ventyx_nozeros %>% 
+  group_by(H_L_W) %>% 
+  mutate(AvgSen_nozeros = mean(Google_Sentiment)) %>% 
+  select(AvgSen_nozeros, H_L_W) %>% 
+  unique()
+
+View(ByImpact_nozeros)
+
+View(ByImpact)
+
+kable(ByImpact)
+
+print(ByImpact)
+
+
+NUSen_nozeros <- Ventyx_dataset %>% 
+  filter(Ventyx_dataset$NU_Sentiment != 0)
+GoogleSen_nozeros <- Ventyx_dataset %>% 
+  filter(Ventyx_dataset$Google_Sentiment !=0)
+
+GoogleSen_fake <- GoogleSen_nozeros %>% 
+  mutate(fake_sentiment = ifelse(H_L_W=="High", Google_Sentiment-1.5,
+         ifelse(H_L_W=="Low", Google_Sentiment, NA)))
+
+dim(NUSen_nozeros)
+dim(GoogleSen_nozeros)
+
+
+ImpactNUSentimentPlot <- ggplot(NUSen_nozeros, aes(x=as.factor(H_L_W), y = NU_Sentiment))+
+  geom_boxplot(fill="slateblue", alpha = 0.2)+
+  xlab("H_L_W")
+
+ImpactGoogleSentimentPlot <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment))+
+#<<<<<<< HEAD
+  geom_boxplot(alpha = 0.5, outlier.colour = "black",  linetype = "dashed", fill = NA, color="black")+
+  xlab("Impact")+
+  ylab("Publicity Score")+
+  theme_classic()+
+  theme(text = element_text(size = 20))+
+  guides(fill=FALSE)+
+  scale_x_discrete(labels = c("Other", "Low"))+
+  geom_boxplot(data = GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment, fill = H_L_W))
+
+  
+ImpactGoogleSentimentPlot_trans <- ggplot(GoogleSen_nozeros, aes(x=as.factor(H_L_W), y = Google_Sentiment))+
+#<<<<<<< HEAD
+  geom_boxplot(alpha = 0.5, outlier.colour = "black",  linetype = "dashed", fill = NA, color="black")+
+  xlab("Impact")+
+  ylab("Publicity Score")+
+  theme_classic()+
+  # theme(axis.title.x=element_blank(), text = element_text(size = 20), axis.text.y = element_blank(), axis.ticks.y = element_blank())+
+  guides(fill=FALSE)+
+  scale_x_discrete(labels = c("Other", "Low"))+
+  geom_boxplot(data = GoogleSen_fake, aes(x=as.factor(H_L_W), y = fake_sentiment, fill = H_L_W))+
+  theme(
+  axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
+        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+            axis.title.y.left = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+        axis.ticks = element_line(size = 2, colour = "white"),
+        # axis.ticks.margin =  unit(c(1,-1),'cm'),
+        axis.ticks.length=unit(0.2,"cm"),
+        # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
+        axis.line = element_line(colour = 'white', size = 1.5),
+    # legend.background = element_rect(colour="grey80"),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+    )
+  
+
+ImpactGoogleSentimentPlot
+#=======
+  # geom_boxplot(fill="slateblue", alpha = 0.2)+
+  # xlab("H_L_W")
+
+# plot(ImpactNUSentimentPlot)
+# plot(ImpactGoogleSentimentPlot)
+#>>>>>>> aa8cc158856fe28a9c8c51f7a871e69c74008b86
+
+mean(Ventyx_dataset$TimelineDays)
+
+```
+
+
+
+
+```{r}
+
+# By Sentiment:
+
+Ventyx_dataset <- Ventyx_dataset %>% 
+mutate(NU_class =
+           ifelse(NU_Sentiment>0, "Positive",
+                  ifelse(NU_Sentiment==0, "Neutral/No Publicity",
+                         "Negative"))) %>% 
+mutate(Google_class =
+           ifelse(Google_Sentiment>0, "Positive",
+                  ifelse(Google_Sentiment==0, "Neutral/No Publicity",
+                         "Negative")))
+
+ByNUSentiment <- Ventyx_dataset %>% 
+  group_by(NU_class) %>% 
+  mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
+  mutate(AvgTimeline = mean(TimelineDays)) %>%
+  mutate(LowImpact = sum(H_L_W == "Low")) %>% 
+  mutate(HighImpact = sum(H_L_W=="High")) %>%
+  mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
+  mutate(Avg_Viewscore = mean(View_Score)) %>% 
+  select(TotalProjects, AvgTimeline, LowImpact, HighImpact, AvgCapacity,  AvgMedianIncome, Avg_Viewscore) %>% 
+   unique()
+
+
+ByGoogleSentiment <- Ventyx_dataset %>% 
+  group_by(Google_class) %>% 
+  mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>%
+  mutate(AvgTimeline = mean(TimelineDays)) %>%
+  mutate(LowImpact = sum(H_L_W == "Low")) %>% 
+  mutate(HighImpact = sum(H_L_W=="High")) %>%
+  mutate(AvgCapacity = mean(Capacity)) %>% 
+  mutate(AvgMedianIncome = mean(Household_MedianIncome)) %>% 
+  mutate(Avg_Viewscore = mean(View_Score)) %>% 
+  mutate(Avg_Population = mean(PopDensity_mi)) %>% 
+  select(TotalProjects, AvgTimeline, LowImpact, HighImpact, AvgCapacity,  AvgMedianIncome, Avg_Viewscore, Avg_Population) %>% 
+   unique()
+
+kable(ByNUSentiment)
+kable(ByGoogleSentiment)
+  
+
+```
+
+
+```{r}
+
+sen_delay_plot <- ggplot(Ventyx_dataset, aes(x = TimelineDays, y = Google_Sentiment, color = H_L_W)) +
+  geom_point()
+
+sen_delay_plot
+
+
+
+```
+
+
+
+```{r}
+
+#t test between sentiment in high and sentiment in low
+# is there a difference (two direction)
+
+## Test assumptions
+
+# sen_hist <- ggplot(Ventyx_dataset, aes(Google_Sentiment)) +
+#   geom_histogram(bins=15) +
+#   facet_wrap(~H_L_W, scale = "free")
+# 
+# sen_hist
+
+#NOPE, having zeros makes it weird distribution (does this matter? should we test with or without 0s?)
+
+Ventyx_nozeros <- Ventyx_dataset %>% 
+  filter(Ventyx_dataset$Google_Sentiment!=0)
+
+dim(Ventyx_nozeros)
+
+summary_nozeros <- Ventyx_nozeros %>% 
+  group_by(H_L_W) %>% 
+  summarise(no_rows=length(H_L_W))
+
+sen_hist <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
+  geom_histogram(bins=15) +
+  facet_wrap(~H_L_W, scale = "free")
+
+sen_hist
+
+## Make a prettier histogram
+
+#<<<<<<< HEAD
+sen_hist_comb_og <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
+  geom_histogram(alpha = 0.5, bins=15, fill = "#6fa4dc") +
+  xlab("Publicity Score")+
+  ylab("Frequency")+
+  theme_classic()+
+  theme(text=element_text(size = 20))
+
+ sen_hist_comb_og
+
+
+sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment)) +
+  geom_histogram(alpha = 0.5, bins=15, fill = "#6fa4dc") +
+  xlab("Publicity Score")+
+  ylab("Frequency")+
+  theme_classic()+
+  theme(text=element_text(size = 20),
+    # legend.background = element_rect(colour="black"),
+        axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
+        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
+        axis.title.x.bottom = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+            axis.title.y.left = element_text(size=24, vjust = -3.5,
+                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
+                                           colour = "white"),
+        axis.ticks = element_line(size = 2, colour = "white"),
+        # axis.ticks.margin =  unit(c(1,-1),'cm'),
+        axis.ticks.length=unit(0.2,"cm"),
+        # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
+        axis.line = element_line(colour = 'white', size = 1.5),
+    # legend.background = element_rect(colour="grey80"),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+    )
+  
+#=======
+# sen_hist_comb <- ggplot(Ventyx_nozeros, aes(Google_Sentiment, fill = H_L_W)) +
+#   geom_histogram(alpha = 0.5, position = "identity", bins=15)
+#>>>>>>> aa8cc158856fe28a9c8c51f7a871e69c74008b86
+
+sen_hist_comb
+
+ggsave(sen_hist_comb, filename = "sen_hist_comb.png",  bg = "transparent", width = 14, height = 7.3, path = "G:/Data/")
+
+
+sen_qq <- ggplot(Ventyx_nozeros, aes(sample = Google_Sentiment)) +
+  geom_qq() +
+  facet_wrap(~H_L_W, scale = "free")
+
+sen_qq
+
+sen_ftest <- var.test(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
+
+#Ratio of variances is not 1 (unequal variances)
+
+sen_ttest <- t.test(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
+
+sen_ttest
+#Did not differ significantly (p = 0.58)
+
+sen_ttest_full <- t.test(Google_Sentiment ~ H_L_W, data = Ventyx_dataset)
+sen_ttest_full
+
+effect_sen_full <- cohen.d(Google_Sentiment ~ H_L_W, data = Ventyx_dataset)
+effect_sen_full
+
+effect_sen <- cohen.d(Google_Sentiment ~ H_L_W, data = Ventyx_nozeros)
+
+
+```
+
+```{r}
+# More sentiment statistics
+
+GoogleSen_mean <- mean(Ventyx_dataset$Google_Sentiment)
+GoogleSen_mean
+GoogleSenNozeros_mean <- mean(Ventyx_nozeros$Google_Sentiment)
+GoogleSenNozeros_mean
+
+GoogleSen_SE <- std.error(Ventyx_dataset$Google_Sentiment)
+GoogleSen_SE
+GoogleSenNozeros_SE <- std.error(Ventyx_nozeros$Google_Sentiment)
+GoogleSenNozeros_SE
+
+mean(Ventyx_dataset$TimelineDays)
+min(Ventyx_dataset$TimelineDays)
+max(Ventyx_dataset$TimelineDays)
+
+mean(Ventyx_dataset$Capacity)
+mean(Ventyx_dataset$Household_MedianIncome)
+mean(Ventyx_dataset$View_Score)
+mean(Ventyx_dataset$PopDensity_mi)
+
+
+```
+
+
+
+
+```{r}
+
+# t test between delay in high and delay in low
+# is there a difference (two direction)
+
+delay_hist <- ggplot(Ventyx_dataset, aes(TimelineDays)) +
+  geom_histogram(bins=15) +
+  facet_wrap(~H_L_W, scale = "free")
+
+delay_hist
+
+delay_qq <- ggplot(Ventyx_dataset, aes(sample = TimelineDays)) +
+  geom_qq() +
+  facet_wrap(~H_L_W, scale = "free")
+
+delay_qq
+
+##Not normal but lots of sample points
+
+delay_ftest <- var.test(TimelineDays ~ H_L_W, data = Ventyx_dataset)
+
+#Ratio of variances is not 1 (unequal variances)
+
+delay_ttest <- t.test(TimelineDays ~ H_L_W, data = Ventyx_dataset)
+
+delay_ttest
+
+
+# p = 0.99
+
+```
+
+
+
+stats on average timeline 
+```{r timelines}
+
+# ## timeline stats
+# 
+# mean(Ventyx_dataset$TimelineDays)
+# min(Ventyx_dataset$TimelineDays)
+# max(Ventyx_dataset$TimelineDays)
+# 
+# # low impact
+# all_ventyx_lowimpact <- Ventyx_dataset %>% 
+#   filter(lr_tif == 1)
+# mean(all_ventyx_lowimpact$TimelineDays)
+# max(all_ventyx_lowimpact$TimelineDays)
+# min(all_ventyx_lowimpact$TimelineDays)
+# 
+# all_ventyx_nonlowimpact <- Ventyx_dataset %>% 
+#   filter(lr_tif == 0)
+# 
+# mean(all_ventyx_nonlowimpact$TimelineDays)
+# max(all_ventyx_nonlowimpact$TimelineDays)
+# min(all_ventyx_nonlowimpact$TimelineDays)
+
+
+```
+
+```{r}
+
+#Normalize pop density, median income, viewscore, capacity, timeline days, Google Sentiment
+
+ventyx_normal <- Ventyx_dataset %>% 
+  mutate(PopDensity_mi_norm = ((((PopDensity_mi - min(PopDensity_mi)) * (100 - 1)) / (max(PopDensity_mi) - min(PopDensity_mi)))) + 1) %>% 
+  mutate(Household_MedianIncome_norm = ((((Household_MedianIncome - min(Household_MedianIncome)) * (100 - 1)) / (max(Household_MedianIncome) - min(Household_MedianIncome)))) + 1) %>% 
+  mutate(View_Score_norm = ((((View_Score - min(View_Score)) * (100 - 1)) / (max(View_Score) - min(View_Score)))) + 1) %>% 
+  mutate(Capacity_norm = ((((Capacity - min(Capacity)) * (100 - 1)) / (max(Capacity) - min(Capacity)))) + 1) %>% 
+  mutate(TimelineDays_norm = ((((TimelineDays - min(TimelineDays)) * (100 - 1)) / (max(TimelineDays) - min(TimelineDays)))) + 1) %>% 
+  mutate(Google_Sentiment_norm = ((((Google_Sentiment - min(Google_Sentiment)) * (100 - 1)) / (max(Google_Sentiment) - min(Google_Sentiment)))) + 1)
+  
+  
+         
+View(ventyx_normal)
+
+
+```
+
