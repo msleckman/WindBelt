@@ -27,12 +27,7 @@ Additional:
 6. Get a weighted mean based on the words available and the count 
 7. Conduct sentiment analysis merge with AFINN dictionary and get a mean sentiment score per project  x 
 8. Get hits and number of hits of different 'negative words' x
-# Following meeting 10/22/18:
-1. Unest token by group of words or sentences and conduct sentiment analysis on this.
-2. Clean scripts - ID words in pdf that consistently pop up and need to be filtered out.
-3. separate headlines from text to ensure we don't have duplicates
-4. create csv format (NAME, Developer, State, Sentiment, subjectivity ...)
-Other notes: 
+ 
 *tidytext::tokenize function - every element in list become df. rbind dfs 
  str_count() how many times does a search term come up 
  str_match()
@@ -51,11 +46,11 @@ Other notes:
 # install.packages("stringr")
 # install.packages("purrr")
 # install.packages("rlang")
-
+  install.packages("pscl")
 # install.packages("dotwhisker")
 # install.packages("jtools")
 # install.packages("sjPlot")
-
+  install.packages("InformationValue")
 # library(knitr)
 # library(pdftools)
 # library(tm)
@@ -79,6 +74,11 @@ library(ggplot2)
 library(dotwhisker)
 library(jtools)
 library(sjPlot)
+library(jtools)
+library(ggeffects)
+library(pscl)
+library(car)
+library(InformationValue)
 
 ```
 
@@ -87,7 +87,7 @@ library(sjPlot)
 # Function to download files from googledrive - such as google_scraping csv, ventyx csv, 
 
 gdrive_downloader <- function(templates_dribble, local_folder){
-  # download all pdfs
+  # download files
   
   for (i in 1:nrow(templates_dribble)){
     drive_download(as_id(templates_dribble$id[[i]]), 
@@ -101,7 +101,6 @@ normalize <- function(x){
   norm_x <- (x - mean(x, na.rm = T))/sd(x, na.rm =T)
   return(norm_x)
 }
-
 
 ```
 
@@ -140,22 +139,29 @@ names(google_df)
 zip_conversion <- read_csv("~/Desktop/CSVs_for_R_scripts_FebUpdates/Copy_zip_code_database.csv")
 memberships <- read_csv("~/Desktop/CSVs_for_R_scripts_FebUpdates/Copy_membership_data_combined.csv")
 
-# #For Alex:
-# ventyx_projects <- read_csv("C:/Users/airvi/Desktop/ventyx_converted_01_08_2019_PopDensity_Income_Viewshed_lowhighimpact_doc_names_IncomeMedian.csv")
-# google_df <- read_csv("C:/Users/airvi/Desktop/google_scraping_01-08-19.csv")
-# zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/zip_code_database.csv")
-# memberships <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/membership_data_combined.csv")
-
 ```
+
+```{r readIn_csv_Alex}
+#Only run this if you're Alex
+ventyx_projects <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/MainData/ventyx_converted_02-19-2019_view_pop_income_lowImpact.csv")
+google_df <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/MainData/google_scraping_02-18-19.csv")
+zip_conversion <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/MainData/zip_code_database.csv")
+memberships <- read_csv("C:/Users/airvi/Documents/Bren/GroupProject/MainData/membership_data_combined.csv")
+```
+
 
 ```{r csv_quick_edits_fixes}
 
 names(ventyx_projects)
+
 #To change the 0-1 definition to Low-High
 ventyx_df <- mutate(ventyx_projects, H_L_W = ifelse(lr_tif>0, "Low", "High"))
 
-#Remove whitespace for name matching later one
+#Remove OID column
+ventyx_df <- ventyx_df %>% 
+  select(-OID)
 
+#Remove whitespace for name matching later one
 ventyx_df$ProjectNam <- gsub(" ", "", ventyx_df$ProjectNam, fixed = TRUE)
 # ventyx_df$ <- gsub(" ", "", ventyx_df$document, fixed = TRUE)
 
@@ -169,8 +175,7 @@ ventyx_df$ProjectNam <- gsub(" ", "", ventyx_df$ProjectNam, fixed = TRUE)
 
 projects_google <- data_frame(ProjectNam = google_df$ProjectName, text = google_df$FullText)
 
-head(projects_google)
-
+# head(projects_google)
 
 ```
 
@@ -201,6 +206,7 @@ projects_words_count_google <- projects_words_google %>%
 
 #### Sentiment dictionaries
 ```{r sentiment_dictionaries}
+
 # Using 'afinn' vs. 'nrc sentiment tests.
 
 get_sentiments("afinn") # associates word with a sentiment score
@@ -209,12 +215,11 @@ get_sentiments("afinn") # associates word with a sentiment score
 get_sentiments("nrc") # associated word with another sentiment feeling word
 
 # We want scores not categorized words, so we will use AFINN for now.
+
 ```
 
 #### Bind Sentiments
 ```{r bind_sentiment}
-
-#### Google ####
 
 projects_score_bind_google <- projects_words_count_google %>%
   left_join(get_sentiments("afinn"), by = "word") %>% 
@@ -224,22 +229,20 @@ projects_score_bind_google <- projects_words_count_google %>%
   # filter(document == "^Osborn*"))
 
 # Note: Many of the scores per words are NA simply because that word does not exist. 
+
 ```
 
 #### Determine Project Scores
 ```{r projectscores}
 
-#To determine the total score for each document (NU) or project (Google)
-# View(ventyx_df)
+#To determine the total score for each project
 
-#### Google #####
 total_sentiment_with_stats_google <- projects_score_bind_google %>% 
   #filter(score !="NA") %>% 
   group_by(ProjectNam) %>% 
   summarise(totals = weighted.mean(score, w = count),
             standard_dev = sd(score), 
-            variance = var(score)
-            )
+            variance = var(score))
 
 total_sentiment_google <- projects_score_bind_google %>% 
   #filter(score !="NA") %>% 
@@ -251,77 +254,42 @@ total_sentiment_google <- projects_score_bind_google %>%
 
 ```
 
-####Combine sentiment scores with original data
+#### Combine sentiment scores with original data
 ```{r combinewithsen}
 
-ventyx_df <- ventyx_df %>% 
-  select(-OID)
-
-# ventyx_df[ventyx_df$ProjectNam == "71RWind",]$document = "71RWind_71Ranch_1(1).PDF"
-# ventyx_df[ventyx_df$ProjectName == "CHillWindFarm",]$document = "CHill_ExergyIntegratedSystems_1.PDF"
-# ventyx_df[ventyx_df$ProjectName == "AdamsProject",]$document = "AdamsProject_MidAmerican_1(2).PDF"
-# ventyx_df[ventyx_df$ProjectName == "LJTrust",]$document = "LJTrust_LJTrust_1(1).PDF"
-# ventyx_df[ventyx_df$ProjectName == "MinonkWindFarm",]$document = "MinonkWindFarm_MinonkWindFarm_1.PDF"
-
-#### Google #####
 #Convert to data frame
 total_sentiment_google_df = as.data.frame(total_sentiment_with_stats_google)
-sample_n(total_sentiment_google_df, 20)
+#sample_n(total_sentiment_google_df, 20)
 
-# total_sentiment_google_df = as.data.frame(total_sentiment_google_df)
-total_sentiment_google_df
 #Remove white space in order to perform merge (google data has extra white spaces)
 total_sentiment_google_df$ProjectNam <- gsub(" ", "", total_sentiment_google_df$ProjectNam, fixed = TRUE)
 
 #Merge with original data
 ventyx_df_google_Sen <- merge(ventyx_df, total_sentiment_google_df, by = "ProjectNam", all = TRUE)
 
-head(ventyx_df_google_Sen)
-names(ventyx_df_google_Sen)
+#head(ventyx_df_google_Sen)
+#names(ventyx_df_google_Sen)
 
 #Rename "totals" columns
 ventyx_df_google_Sen <- rename(ventyx_df_google_Sen, Google_Sentiment=totals)
-names(ventyx_df_google_Sen)
 
-sample_n(ventyx_df_google_Sen[,39:42], 20)
-
-```
-
-```{r finalize_ventyx_for_regression}
-
-#### Combined ####
-
-# ventyx_df_NU_google_Sen <- merge(ventyx_df_NU_Sen, total_sentiment_google_df, by.x = "ProjectName", by.y = "document", all = TRUE)
-
-# Make NA scores 0
-ventyx_df_google_Sen <- ventyx_df_google_Sen %>% 
-  mutate(Google_Sentiment = ifelse(is.na(Google_Sentiment),0,Google_Sentiment))
-
-ventyx_df_google_Sen <- ventyx_df_google_Sen %>% 
-  filter(Capacity >= 0) %>% 
-  filter(TimelineDa > 0) %>% 
-  filter(!lr_tif < 0) %>% 
-  filter(!View_Score < 0)
-
-unique(ventyx_df_google_Sen$View_Score)
-
-### For descriptive stats
-#write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
+#names(ventyx_df_google_Sen)
+#sample_n(ventyx_df_google_Sen[,39:42], 20)
 
 ```
 
-####Convert sentiment scores to positive or negative in new column (optional)
+#### Convert sentiment scores to positive or negative in new column
 ```{r pos_or_neg_sen}
 
 ventyx_df_google_Sen <- mutate(ventyx_df_google_Sen, Sign_Google = ifelse(Google_Sentiment>0, "Positive", "Negative"))
 
 ```
 
-####Add environmental memberships data
+#### Add environmental memberships data
 ```{r env_members}
 
 #Make sure all zip codes are 5 digits
-# memberships$zip <- sprintf("%05d", memberships$zip)
+memberships$zip <- sprintf("%05d", memberships$zip)
 
 #Merge memberships data with county
 zip_county_merge <- merge(zip_conversion, memberships, by = "zip")
@@ -338,19 +306,36 @@ zip_county_merge_aggregate <- zip_county_merge %>%
   summarise(members_env = sum(members_nrdc,members_nwf,members_tnc))
 
 #Merge with ventyx dataset and set NA membership values to zero
-
 ventyx_df_google_Sen <- merge(ventyx_df_google_Sen, zip_county_merge_aggregate, by.x = "County", by.y = "county", all.x = TRUE)
-
-ventyx_df_google_Sen$members_env.x
 ventyx_df_google_Sen$members_env[is.na(ventyx_df_google_Sen$members_env)] <- 0
  
 ```
 
-####Prepare the relevant columns for regression
+#### Regression Prep
+
+```{r finalize_ventyx_for_regression}
+
+# Make NA scores 0
+ventyx_df_google_Sen <- ventyx_df_google_Sen %>% 
+  mutate(Google_Sentiment = ifelse(is.na(Google_Sentiment),0,Google_Sentiment)) %>% 
+  mutate(Canceled = ifelse(OnlyCancel == "Yes",1,0))
+
+ventyx_df_google_Sen <- ventyx_df_google_Sen %>% 
+  filter(Capacity >= 0) %>% 
+  filter(TimelineDa > 0) %>% 
+  filter(!lr_tif < 0) %>% 
+  filter(!View_Score < 0)
+
+### For descriptive stats
+#write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
+
+```
+
 ```{r organize_for_regressions}
 
-#### Google ####
 ventyx_df_google_Sen$H_L_W <- as.factor(ventyx_df_google_Sen$H_L_W)
+
+ventyx_df_google_Sen$H_L_W <- relevel(ventyx_df_google_Sen$H_L_W, ref = "High")
 
 ventyx_df_google_Sen$PopDensity <- as.numeric(ventyx_df_google_Sen$PopDensity)
 
@@ -358,15 +343,10 @@ ventyx_df_google_Sen$Household_ <- as.numeric(ventyx_df_google_Sen$Household_)
 
 ventyx_df_google_Sen$View_Score <- as.numeric(ventyx_df_google_Sen$View_Score)
 
-ventyx_df_google_Sen$H_L_W <- relevel(ventyx_df_google_Sen$H_L_W, ref = "High")
-
 ventyx_df_google_Sen$Sign_Google <- as.factor(ventyx_df_google_Sen$Sign_Google)
 
 ventyx_df_google_Sen$OnlyCancel <- as.factor(ventyx_df_google_Sen$OnlyCancel)
 
-#str(ventyx_df_google_Sen)
-
-#summary(ventyx_df_google_Sen)
 
 ### adding normalization to df 
 # 
@@ -382,13 +362,7 @@ ventyx_df_google_Sen$OnlyCancel <- as.factor(ventyx_df_google_Sen$OnlyCancel)
   
 ```
 
-
-- check how regressions were formatted in the plots script
-
-####Run Regressions
 ```{r prep}
-
-View(ventyx_df_google_Sen)
 
 renamed_variables <- c(View_Score = "View Score",
                         Google_Sentiment = "Google News Publicity score",
@@ -399,59 +373,159 @@ renamed_variables <- c(View_Score = "View Score",
                         H_L_WLow = "High vs. low impact area"
                         # H_L_W*NU_Sentiment = "site vs. sentiment interaction"
                        )
-unique(ventyx_df_google_Sen)
 
 ventyx_Operating <- ventyx_df_google_Sen %>% 
   filter(OnlyCancel == "No" & Artificial == "No" & OperatingD == "No")
 
-ventyx_Operating_Cancelled <- ventyx_df_google_Sen %>% 
+ventyx_Operating_Canceled <- ventyx_df_google_Sen %>% 
   filter(Artificial == "No" & OperatingD == "No")
 
 ventyx_Cancelled <- ventyx_df_google_Sen %>% 
   filter(OnlyCancel == "Yes" & OperatingD == "No" & Artificial == "No")
 
-sample_n(ventyx_Cancelled, 20)
-
-Ventyx_Operating_NoZeros <-ventyx_df_google_Sen %>% 
+Ventyx_Operating_NoZeros <- ventyx_df_google_Sen %>% 
   filter(OnlyCancel == "No" & Artificial == "No" & OperatingD == "No") %>% 
   filter(Google_Sentiment != 0)
 
-dim(Ventyx_Operating_NoZeros)
-
-View(Ventyx_Operating_NoZeros)
-```
-
-
-###I OFFICIAL RUNS
-#### NA Sentiment scores coded as '0' - w/ interaction term
-##### Google only
-```{r R9 OFFICIAL_RESULT}
+Ventyx_Operating_Canceled_NoZeros <- ventyx_df_google_Sen %>% 
+  filter(Artificial == "No" & OperatingD == "No") %>% 
+  filter(Google_Sentiment != 0) %>% 
+  filter(State != "Arkansas")
 
 # write_csv(ventyx_df_google_Sen, "G:/Data/VENTYX_DATASET/ventyx_df_google_Sen_022219_2.csv")
 
+```
 
-# Verify the variables in the regression
+#### Run Regressions
 
-#9. All variables included -- using only Google scores and an interaction between high-low and Google sentiment. N/A scores coded as "0"
+```{r linear_regression_all}
 
-reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter <- lm(TimelineDa ~ View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + Google_Sentiment*H_L_W + members_env.x + OnlyCancel, data=ventyx_Operating)
+#Regression of all operating / canceled projects with timeline as the dependent variable
+linear_reg_all <- lm(TimelineDa ~ View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + Google_Sentiment*H_L_W + members_env + OnlyCancel, data=ventyx_Operating_Canceled)
 
-ventyx_df_google_Sen$members_env
-
-names(ventyx_df_google_Sen)
-
-
-summary(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-require(jtools)
-jtools::summ(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
-
+summary(linear_reg_all)
+jtools::summ(linear_reg_all)
 
 ```
+
+```{r linear_regression_sentiment}
+
+#Regression of all operating / canceled projects with sentiment as the dependent variable
+linear_reg_sentiment <- lm(Google_Sentiment ~ View_Score + TimelineDa + PopDensity + Household_ + Capacity + H_L_W + State, data=ventyx_Operating_Canceled)
+
+summary(linear_reg_sentiment)
+jtools::summ(linear_reg_sentiment)
+
+```
+
+
+```{r logistic_regression_all}
+
+#For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
+train <- ventyx_Operating_Canceled[1:800,]
+test <- ventyx_Operating_Canceled[801:871,]
+
+#Next, we run the logistic regression
+logistic_reg_all <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + members_env + Google_Sentiment*H_L_W, family = binomial, data = train)
+
+#View model results
+summary(logistic_reg_all) #coefficients represent log odds
+exp(coef(logistic_reg_all)) #exponentiated coefficients
+
+#Run anova to compare null deviance vs. residual deviance. The greater the difference the better.
+anova(logistic_reg_all, test="Chisq")
+
+#To view the logistic model equivalent of R-squared
+pR2(logistic_reg_all)
+
+#Check for multicollinearity
+vif(logistic_reg_all) #low multicollinearity
+
+#Now we predict the probability of the test projects being canceled
+pred_probs <- predict(logistic_reg_all, newdata=test, type='response', se.fit = TRUE)
+pred_probs_df <- data.frame(test, pred_probs$fit, pred_probs$se.fit)
+pred_probs_df <- pred_probs_df %>% 
+  rename(Probability = pred_probs.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+#To evaluate the misclassification of predicted cancelations and actual cancelations -- essentially, how accurate are the predictions?
+optCutOff <- optimalCutoff(test$Canceled, pred_probs$fit)
+misClassError(test$Canceled, pred_probs$fit, threshold = optCutOff) #~14% misclassification error, so overall pretty accurate
+
+#Plot ROC, which traces the percentage of true positives accurately predicted by the model as the prediction probability cutoff is lowered from 1 to 0.
+plotROC(test$Canceled, pred_probs$fit) #the graph has a steep curve, which indicated a good quality model
+
+#Measure concordance, which measures how well high probability scores match up with cancelation values, and vice versa.
+Concordance(test$Canceled, pred_probs$fit) #a concordance of ~0.9 is a high quality model
+```
+
+```{r logistic_regression_all_NoZeroes}
+
+#For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
+train_NoZeroes <- Ventyx_Operating_Canceled_NoZeros[1:206,]
+test_NoZeroes <- Ventyx_Operating_Canceled_NoZeros[207:276,]
+
+#Next, we run the logistic regression
+logistic_reg_all_NoZeroes <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + members_env + Google_Sentiment*H_L_W, family = binomial, data = train_NoZeroes)
+
+#View model results
+summary(logistic_reg_all_NoZeroes) #coefficients represent log odds
+exp(coef(logistic_reg_all_NoZeroes)) #exponentiated coefficients
+
+#Run anova to compare null deviance vs. residual deviance. The greater the difference the better.
+anova(logistic_reg_all_NoZeroes, test="Chisq")
+
+#To view the logistic model equivalent of R-squared
+pR2(logistic_reg_all_NoZeroes)
+
+#Check for multicollinearity
+vif(logistic_reg_all_NoZeroes) #low multicollinearity except for state
+
+#Now we predict the probability of the test projects being canceled
+pred_probs_NoZeroes <- predict(logistic_reg_all_NoZeroes, newdata=test_NoZeroes, type='response', se.fit = TRUE)
+pred_probs_df_NoZeroes <- data.frame(test_NoZeroes, pred_probs_NoZeroes$fit, pred_probs_NoZeroes$se.fit)
+pred_probs_df_NoZeroes <- pred_probs_df_NoZeroes %>% 
+  rename(Probability = pred_probs_NoZeroes.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+#To evaluate the misclassification of predicted cancelations and actual cancelations -- essentially, how accurate are the predictions?
+optCutOff <- optimalCutoff(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit)
+misClassError(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit, threshold = optCutOff) #19% misclassification error, so overall pretty accurate
+
+#Plot ROC, which traces the percentage of true positives accurately predicted by the model as the prediction probability cutoff is lowered from 1 to 0.
+plotROC(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #the graph has a steep curve, but not as steep as the model with zeroes included
+
+#Measure concordance, which measures how well high probability scores match up with cancelation values, and vice versa.
+Concordance(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #a concordance of ~0.65 which is pretty good
+```
+
+### Visualization
+
+```{r logistic_plot}
+
+ggplot(pred_probs_df, aes(x = Publicity, y = Probability)) + 
+  geom_line() + 
+  #geom_ribbon(aes(ymin = Probability - pred_probs.se.fit, ymax = Probability + pred_probs.se.fit), alpha = 0.3) +
+  theme_classic() + 
+  scale_x_continuous(trans = "reverse") +
+  ylab("Probability of Cancelation\n") +
+  xlab("\nPublicity Score")
+
+ggplot(pred_probs_df_NoZeroes, aes(x = Publicity, y = Probability)) + 
+  geom_line() + 
+  #geom_ribbon(aes(ymin = Probability - pred_probs_NoZeroes.se.fit, ymax = Probability + pred_probs_NoZeroes.se.fit), alpha = 0.3) +
+  theme_classic() + 
+  scale_x_continuous(trans = "reverse") +
+  ylab("Probability of Cancelation\n") +
+  xlab("\nPublicity Score")
+
+```
+
 
 ```{r official_reg_ploted}
 
 ## everything
-regression1 <- tidy(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+regression1 <- tidy(linear_reg_all)
 
 dw_plot_1<-dwplot(regression1, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
     theme_bw()+
@@ -499,11 +573,10 @@ dw_plot_3
 GP_red <- "#cc4125"
 GP_blue <- "#6fa4dc"
 
-vcov <- vcov(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter)
+vcov <- vcov(linear_reg_all)
 
-require(sjPlot)
 interaction_term_plot<-
-  plot_model(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter,
+  plot_model(linear_reg_all,
              type = "int", mdrt.values = "meansd", 
              axis.title = "", title = "", 
              legend.title = "",
@@ -521,12 +594,10 @@ interaction_term_plot
 
 ```{r marg_effect_second_option}
 
-
-require(ggeffects)
-mydf <- ggpredict(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, 
+mydf <- ggpredict(linear_reg_all, 
 terms = c("Google_Sentiment", "H_L_W"))
 
-mydf <- ggpredict(reg_TLD_ZEROES_VS_GSen_PopDen_MedianIncome_Cap_HL_State_Inter, 
+mydf <- ggpredict(linear_reg_all, 
 terms = c("Timelineda", "OnlyCancel"))
 
 interaction_plot_2 <- ggplot(mydf, aes(x, predicted, color = group))+
