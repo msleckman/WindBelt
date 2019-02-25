@@ -79,6 +79,7 @@ library(ggeffects)
 library(pscl)
 library(car)
 library(InformationValue)
+library(boot)
 
 ```
 
@@ -392,6 +393,7 @@ Ventyx_Operating_Canceled_NoZeros <- ventyx_df_google_Sen %>%
   filter(Google_Sentiment != 0) %>% 
   filter(State != "Arkansas")
 
+#ventyx_Operating_Canceled$OnlyCancel <- relevel(ventyx_Operating_Canceled$OnlyCancel, ref = "No")
 # write_csv(ventyx_df_google_Sen, "G:/Data/VENTYX_DATASET/ventyx_df_google_Sen_022219_2.csv")
 
 ```
@@ -435,6 +437,9 @@ exp(coef(logistic_reg_all)) #exponentiated coefficients
 #Run anova to compare null deviance vs. residual deviance. The greater the difference the better.
 anova(logistic_reg_all, test="Chisq")
 
+#Diagnostic plots
+glm.diag.plots(logistic_reg_all)
+
 #To view the logistic model equivalent of R-squared
 pR2(logistic_reg_all)
 
@@ -474,6 +479,9 @@ exp(coef(logistic_reg_all_NoZeroes)) #exponentiated coefficients
 
 #Run anova to compare null deviance vs. residual deviance. The greater the difference the better.
 anova(logistic_reg_all_NoZeroes, test="Chisq")
+
+#Diagnostic plots
+glm.diag.plots(logistic_reg_all_NoZeroes)
 
 #To view the logistic model equivalent of R-squared
 pR2(logistic_reg_all_NoZeroes)
