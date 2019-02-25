@@ -49,10 +49,11 @@ Wrangle data: remove rows with problems in variables, format columns, etc
 
 ```{r }
 
-Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_google_Sen_022219_2.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score)) %>% filter(View_Score>-1) %>% filter(Capacity > 0)
+Ventyx_dataset<- read_csv(file = paste0(home_folder, "ventyx_df_google_Sen_022219_2.csv")) %>% filter(!is.na(lr_tif)) %>% filter(!is.na(View_Score)) %>% filter(View_Score>-1) %>% filter(Capacity > 0) %>% 
+  filter(!is.na(Household_))
 
 Ventyx_dataset$Household_MedianIncome <- as.numeric(Ventyx_dataset$Household_)
-
+# Extra project in cancelled (NA income) that should be filtered out
 
 ```
 
@@ -69,7 +70,7 @@ cancelled <- Ventyx_dataset %>%
   filter(OnlyCancel=="Yes" & Artificial == "No" & OperatingD == "No")
 
 dim(cancelled)
-# Extra project in cancelled (NA income) that should be filtered out
+
 
 ```
 
