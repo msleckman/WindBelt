@@ -403,7 +403,7 @@ Ventyx_Operating_Canceled_NoZeros <- ventyx_df_google_Sen %>%
 ```{r linear_regression_all}
 
 #Regression of all operating / canceled projects with timeline as the dependent variable
-linear_reg_all <- lm(TimelineDa ~ View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + Google_Sentiment*H_L_W + members_env + OnlyCancel, data=ventyx_Operating_Canceled)
+linear_reg_all <- lm(TimelineDa ~ View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + Google_Sentiment*H_L_W + Google_Sentiment*OnlyCancel + members_env + OnlyCancel, data=ventyx_Operating_Canceled)
 
 summary(linear_reg_all)
 jtools::summ(linear_reg_all)
@@ -426,6 +426,10 @@ jtools::summ(linear_reg_sentiment)
 #For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
 train <- ventyx_Operating_Canceled[1:800,]
 test <- ventyx_Operating_Canceled[801:871,]
+
+#To test the reversal of values if we switch "High" impact areas to "Low" and vice verse
+test_reversed <- test %>% 
+  mutate(H_L_W = ifelse(H_L_W == "High", "Low","High"))
 
 #Next, we run the logistic regression
 logistic_reg_all <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + members_env + Google_Sentiment*H_L_W, family = binomial, data = train)
@@ -453,6 +457,24 @@ pred_probs_df <- pred_probs_df %>%
   rename(Probability = pred_probs.fit) %>% 
   rename(Publicity = Google_Sentiment)
 
+#Now predict probabilities for reversed values
+pred_probs_reversed <- predict(logistic_reg_all, newdata=test_reversed, type='response', se.fit = TRUE)
+pred_probs_df_reversed <- data.frame(test, pred_probs_reversed$fit, pred_probs_reversed$se.fit)
+pred_probs_df_reversed <- pred_probs_df_reversed %>% 
+  rename(Probability = pred_probs_reversed.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+#Probability means
+mean(pred_probs_df$Probability)
+mean(pred_probs_df_reversed$pred_probs_reversed.fit)
+
+# pred_low <- pred_probs_df %>% 
+#   filter(H_L_W == "Low")
+# pred_high <- pred_probs_df %>% 
+#   filter(H_L_W == "High")
+# mean(pred_low$Probability)
+# mean(pred_high$Probability)
+
 #To evaluate the misclassification of predicted cancelations and actual cancelations -- essentially, how accurate are the predictions?
 optCutOff <- optimalCutoff(test$Canceled, pred_probs$fit)
 misClassError(test$Canceled, pred_probs$fit, threshold = optCutOff) #~14% misclassification error, so overall pretty accurate
@@ -462,6 +484,7 @@ plotROC(test$Canceled, pred_probs$fit) #the graph has a steep curve, which indic
 
 #Measure concordance, which measures how well high probability scores match up with cancelation values, and vice versa.
 Concordance(test$Canceled, pred_probs$fit) #a concordance of ~0.9 is a high quality model
+
 ```
 
 ```{r logistic_regression_all_NoZeroes}
