@@ -75,7 +75,7 @@ dim(cancelled)
 ```
 
 Operating: 473
-Cancelled: 396
+Cancelled: 395
 
 
 Stats on all projects for operating, all projects for cancelled
@@ -111,7 +111,7 @@ cancelled_summary <- cancelled %>%
 
 ```
 
-## From here onwards is old code, may need to be updated
+## From here onwards is old code, will need to be modified for new data/new graphs we want
 
 
 ```{r}
