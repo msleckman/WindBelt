@@ -75,7 +75,7 @@ dim(cancelled)
 ```
 
 Operating: 473
-Cancelled: 396
+Cancelled: 395
 
 
 Stats on all projects for operating, all projects for cancelled
@@ -95,7 +95,6 @@ operating_summary <- operating %>%
          AvgCapacity, AvgViewscore, AvgPopDensity, AvgIncome) %>% 
   unique()
 
-# One project has NA for income
 cancelled_summary <- cancelled %>% 
    mutate(TotalProjects = sum(H_L_W == "Low" | H_L_W == "High")) %>% 
   mutate(LowProjects = sum(H_L_W == "Low")) %>% 
@@ -111,7 +110,7 @@ cancelled_summary <- cancelled %>%
 
 ```
 
-## From here onwards is old code, may need to be updated
+## From here onwards is old code, will need to be modified for new data/new graphs we want
 
 
 ```{r}
