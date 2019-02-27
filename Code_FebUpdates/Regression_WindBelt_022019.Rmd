@@ -539,7 +539,7 @@ ggplot(pred_probs_df, aes(x = Publicity, y = Probability)) +
   #geom_ribbon(aes(ymin = Probability - pred_probs.se.fit, ymax = Probability + pred_probs.se.fit), alpha = 0.3) +
   theme_classic() + 
   scale_x_continuous(trans = "reverse") +
-  ylab("Probability of Cancelation\n") +
+  ylab("Probability of Cancellation\n") +
   xlab("\nPublicity Score")
 
 ggplot(pred_probs_df_NoZeroes, aes(x = Publicity, y = Probability)) + 
@@ -547,7 +547,7 @@ ggplot(pred_probs_df_NoZeroes, aes(x = Publicity, y = Probability)) +
   #geom_ribbon(aes(ymin = Probability - pred_probs_NoZeroes.se.fit, ymax = Probability + pred_probs_NoZeroes.se.fit), alpha = 0.3) +
   theme_classic() + 
   scale_x_continuous(trans = "reverse") +
-  ylab("Probability of Cancelation\n") +
+  ylab("Probability of Cancellation\n") +
   xlab("\nPublicity Score")
 
 ```
