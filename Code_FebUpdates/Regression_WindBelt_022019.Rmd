@@ -348,6 +348,10 @@ ventyx_df_google_Sen$Sign_Google <- as.factor(ventyx_df_google_Sen$Sign_Google)
 
 ventyx_df_google_Sen$OnlyCancel <- as.factor(ventyx_df_google_Sen$OnlyCancel)
 
+ventyx_df_google_Sen$State <- as.factor(ventyx_df_google_Sen$State)
+
+ventyx_df_google_Sen$State <- relevel(ventyx_df_google_Sen$State, ref = "Te")
+
 
 ### adding normalization to df 
 # 
