@@ -13,22 +13,22 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 
 library(tidyverse)
-library(googledrive)
-library(purrr)
+#library(googledrive)
+#library(purrr)
 library(readr)
-library(stringr)
-library(gsubfn)
-library(devtools)
+#library(stringr)
+#library(gsubfn)
+#library(devtools)
 library(dplyr)
-library(tidytext)
-library(broom)
-library(data.table)
-library(ggplot2)
-library(dotwhisker)
-library(jtools)
-library(sjPlot)
-library(jtools)
-library(ggeffects)
+#library(tidytext)
+#library(broom)
+#library(data.table)
+#library(ggplot2)
+#library(dotwhisker)
+#library(jtools)
+#library(sjPlot)
+#library(jtools)
+#library(ggeffects)
 library(pscl)
 library(car)
 library(InformationValue)
@@ -234,7 +234,7 @@ pred_probs_trunc_df <- pred_probs_trunc_df %>%
 For numeric variables, I used the mean. For categorical variables, I used the most common (ie. Texas and high-risk).
 ```{r}
 
-summary(ventyx_Operating_Canceled)
+# summary(ventyx_Operating_Canceled)
 
 mean(ventyx_Operating_Canceled$TimelineDa) # 1149.821
 sd(ventyx_Operating_Canceled$TimelineDa) # 827.1744
@@ -290,6 +290,49 @@ average_project$members_env <- as.numeric(average_project$members_env)
 
 ```
 
+Repeat for median project.
+```{r}
+
+median(ventyx_Operating_Canceled$TimelineDa) # 989 (mean = 1149.821)
+
+median(ventyx_Operating_Canceled$View_Score) # 54 (mean = 65.11366)
+
+median(ventyx_Operating_Canceled$Google_Sentiment) # 0 includings NAs = 0, (mean = 0.2926)
+median(Ventyx_Operating_Canceled_NoZeros$Google_Sentiment) # 0.899816 no 0's
+
+median(ventyx_Operating_Canceled$PopDensity) # 16.7 (mean = 57.90)
+
+median(ventyx_Operating_Canceled$Household_, na.rm = TRUE) # 49693.5 (mean = 50516.88), Pine Ridge Wind Farm does not have a household income
+
+median(ventyx_Operating_Canceled$Capacity) # 95 (mean = 117.08)
+
+median(ventyx_Operating_Canceled$members_env) # 222 (mean = 1346.125)
+
+med_project <- c(989, 54, 0, 16.7, 49693.5, 95, "High", "Texas", 222)
+med_project <- as.data.frame(med_project)
+median_project <- med_project # change name of df so that row and df aren't the same name
+median_project <- t(median_project)
+
+# rename columns
+
+colnames(median_project) <- c("TimelineDa", "View_Score", "Google_Sentiment", "PopDensity", "Household_", "Capacity", "H_L_W", "State", "members_env")
+
+# prep df for regression: it ends up as a matrix after wrangling above, variables need to be correct classes
+
+median_project <- as.data.frame(median_project)
+median_project$TimelineDa <- as.numeric(median_project$TimelineDa)
+median_project$View_Score <- as.numeric(median_project$View_Score)
+median_project$Google_Sentiment <- as.numeric(median_project$Google_Sentiment)
+median_project$PopDensity <- as.numeric(median_project$PopDensity)
+median_project$Household_ <- as.numeric(median_project$Household_)
+median_project$Capacity <- as.numeric(median_project$Capacity)
+median_project$H_L_W <- as.factor(median_project$H_L_W)
+median_project$State <- as.factor(median_project$State)
+median_project$members_env <- as.numeric(median_project$members_env)
+
+```
+
+
 Part 2. Use logistic model to predict probability of cancellation
 ```{r}
 
@@ -300,6 +343,14 @@ mean_pred_probs_df <- mean_pred_probs_df %>%
   rename(Publicity = Google_Sentiment)
 
 # The average wind project, based on our data, has a 2% chance of being canceled
+
+med_pred_probs <- predict(logistic_reg_all, newdata=median_project, type='response', se.fit = TRUE)
+med_pred_probs_df <- data.frame(median_project, med_pred_probs$fit, med_pred_probs$se.fit)
+med_pred_probs_df <- med_pred_probs_df %>% 
+  rename(Probability = med_pred_probs.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+# same result
 
 ```
 
