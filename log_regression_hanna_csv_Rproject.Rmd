@@ -118,7 +118,7 @@ renamed_variables <- c(View_Score = "View Score",
 
 ## Subset data
 ventyx_Operating <- ventyx_df_google_Sen %>% 
-  filter(OnlyCancel == "No" & Artificial == "No" & OperatingD == "No")
+  filter(OnlyCancel == "No" & Artificial == "No" & OperatingD == "No") # why do we take OperatingD out?
 
 ventyx_Operating_Canceled <- ventyx_df_google_Sen %>% 
   filter(Artificial == "No" & OperatingD == "No")
@@ -226,4 +226,147 @@ pred_probs_trunc_df <- pred_probs_trunc_df %>%
   rename(Publicity = Google_Sentiment)
 
 ```
+
+### Mean Wind Project: Probability of Cancellation
+
+####Part 1. Define the average wind project
+
+For numeric variables, I used the mean. For categorical variables, I used the most common (ie. Texas and high-risk).
+```{r}
+
+summary(ventyx_Operating_Canceled)
+
+mean(ventyx_Operating_Canceled$TimelineDa) # 1149.821
+sd(ventyx_Operating_Canceled$TimelineDa) # 827.1744
+
+mean(ventyx_Operating_Canceled$View_Score) # 65.11366
+sd(ventyx_Operating_Canceled$View_Score) # 50.58458
+
+mean(ventyx_Operating_Canceled$Google_Sentiment) # 0.2926
+sd(ventyx_Operating_Canceled$Google_Sentiment) # 0.5677
+
+mean(ventyx_Operating_Canceled$PopDensity) # 57.90
+sd(ventyx_Operating_Canceled$PopDensity) # 189.07
+
+mean(ventyx_Operating_Canceled$Household_, na.rm = TRUE) # 50516.88, Pine Ridge Wind Farm does not have a household income
+sd(ventyx_Operating_Canceled$Household_, na.rm = TRUE) # 9514.333
+
+mean(ventyx_Operating_Canceled$Capacity) # 117.08
+sd(ventyx_Operating_Canceled$Capacity) # 155.12
+
+mean(ventyx_Operating_Canceled$members_env) # 1346.125
+sd(ventyx_Operating_Canceled$members_env) # 2853.518
+
+# repeat for canceled and operating projects
+
+# Mean project: 
+
+# Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + members_env + Google_Sentiment*H_L_W
+
+mean_project <- c(1149.821, 65.11366, 0.2926, 57.90, 50516.88, 117.08, "High", "Texas", 1346.125)
+mean_project <- as.data.frame(mean_project)
+average_project <- mean_project # change name of df so that row and df aren't the same name
+average_project <- t(average_project)
+
+# rename columns
+
+colnames(average_project) <- c("TimelineDa", "View_Score", "Google_Sentiment", "PopDensity", "Household_", "Capacity", "H_L_W", "State", "members_env")
+
+# prep df for regression: it ends up as a matrix after wrangling above, variables need to be correct classes
+
+average_project <- as.data.frame(average_project)
+average_project$TimelineDa <- as.numeric(average_project$TimelineDa)
+average_project$View_Score <- as.numeric(average_project$View_Score)
+average_project$Google_Sentiment <- as.numeric(average_project$Google_Sentiment)
+average_project$PopDensity <- as.numeric(average_project$PopDensity)
+average_project$Household_ <- as.numeric(average_project$Household_)
+average_project$Capacity <- as.numeric(average_project$Capacity)
+average_project$H_L_W <- as.factor(average_project$H_L_W)
+average_project$State <- as.factor(average_project$State)
+average_project$members_env <- as.numeric(average_project$members_env)
+
+# canceled_mean
+# operating_mean
+
+```
+
+Part 2. Use logistic model to predict probability of cancellation
+```{r}
+
+mean_pred_probs <- predict(logistic_reg_all, newdata=average_project, type='response', se.fit = TRUE)
+mean_pred_probs_df <- data.frame(average_project, mean_pred_probs$fit, mean_pred_probs$se.fit)
+mean_pred_probs_df <- mean_pred_probs_df %>% 
+  rename(Probability = mean_pred_probs.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+# The average wind project, based on our data, has a 2% chance of being canceled
+
+```
+
+The average wind project, based on our data, has a 2% change of being canceled. This seems low?
+
+### Distribution visualizations
+
+```{r publicity_score}
+
+# operating and canceled
+
+ggplot(ventyx_Operating_Canceled, aes(x = Google_Sentiment)) + # with 0s
+  geom_histogram() +
+  xlim(-1.5, 2) +
+  ylim(0, 610) +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red') +
+  geom_vline(aes(xintercept = median(Google_Sentiment)),col='green')
+
+ggplot(filter(ventyx_Operating_Canceled, Google_Sentiment != 0), aes(x = Google_Sentiment)) + # without 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
+
+# just canceled
+
+ggplot(ventyx_Cancelled, aes(x = Google_Sentiment)) + # with 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
+
+ggplot(filter(ventyx_Cancelled, Google_Sentiment != 0), aes(x = Google_Sentiment)) + # without 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
+
+# just operating
+
+ggplot(ventyx_Operating, aes(x = Google_Sentiment)) + # with 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
+  
+
+ggplot(filter(ventyx_Operating, Google_Sentiment != 0), aes(x = Google_Sentiment)) + # without 0s
+  geom_histogram() +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red') +
+  xlim(-1.5, 2)
+
+```
+
+```{r timeline}
+
+# operating and canceled
+
+ggplot(ventyx_Operating_Canceled, aes(x = TimelineDa)) +
+  geom_histogram()
+
+# just canceled
+
+ggplot(ventyx_Cancelled, aes(x = TimelineDa)) +
+  geom_histogram() +
+  xlim(0, 4500) +
+  ylim(0, 100)
+
+# just operating
+
+ggplot(ventyx_Operating, aes(x = TimelineDa)) +
+  geom_histogram() +
+  xlim(0, 4500) +
+  ylim(0, 100)
+
+```
+
 
