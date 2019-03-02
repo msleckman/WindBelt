@@ -322,10 +322,11 @@ ventyx_df_google_Sen <- ventyx_df_google_Sen %>%
   mutate(Canceled = ifelse(OnlyCancel == "Yes",1,0))
 
 ventyx_df_google_Sen <- ventyx_df_google_Sen %>% 
-  filter(Capacity >= 0) %>% 
+  filter(Capacity > 0) %>% 
   filter(TimelineDa > 0) %>% 
   filter(!lr_tif < 0) %>% 
-  filter(!View_Score < 0)
+  filter(!View_Score < 0) %>% 
+  filter(!is.na(Household_))
 
 ### For descriptive stats
 #write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
@@ -350,7 +351,7 @@ ventyx_df_google_Sen$OnlyCancel <- as.factor(ventyx_df_google_Sen$OnlyCancel)
 
 ventyx_df_google_Sen$State <- as.factor(ventyx_df_google_Sen$State)
 
-ventyx_df_google_Sen$State <- relevel(ventyx_df_google_Sen$State, ref = "Te")
+ventyx_df_google_Sen$State <- relevel(ventyx_df_google_Sen$State, ref = "Texas")
 
 
 ### adding normalization to df 
@@ -385,7 +386,7 @@ ventyx_Operating <- ventyx_df_google_Sen %>%
 ventyx_Operating_Canceled <- ventyx_df_google_Sen %>% 
   filter(Artificial == "No" & OperatingD == "No")
 
-ventyx_Cancelled <- ventyx_df_google_Sen %>% 
+ventyx_Canceled <- ventyx_df_google_Sen %>% 
   filter(OnlyCancel == "Yes" & OperatingD == "No" & Artificial == "No")
 
 Ventyx_Operating_NoZeros <- ventyx_df_google_Sen %>% 
@@ -397,10 +398,57 @@ Ventyx_Operating_Canceled_NoZeros <- ventyx_df_google_Sen %>%
   filter(Google_Sentiment != 0) %>% 
   filter(State != "Arkansas")
 
+ventyx_Truncated <- ventyx_df_google_Sen %>% 
+  filter(Artificial == "Yes")
+
 #ventyx_Operating_Canceled$OnlyCancel <- relevel(ventyx_Operating_Canceled$OnlyCancel, ref = "No")
 # write_csv(ventyx_df_google_Sen, "G:/Data/VENTYX_DATASET/ventyx_df_google_Sen_022219_2.csv")
 
 ```
+
+```{r descriptive_stats}
+
+#Averages of operating projects
+mean(ventyx_Operating$TimelineDa)
+mean(ventyx_Operating$Google_Sentiment)
+mean(ventyx_Operating$Capacity)
+mean(ventyx_Operating$View_Score)
+mean(ventyx_Operating$PopDensity)
+mean(ventyx_Operating$Household_)
+mean(ventyx_Operating$members_env)
+sum(ventyx_Operating$H_L_W == "Low")/sum(ventyx_Operating$H_L_W == "High")
+
+#Averages of canceled projects
+mean(ventyx_Canceled$TimelineDa)
+mean(ventyx_Canceled$Google_Sentiment)
+mean(ventyx_Canceled$Capacity)
+mean(ventyx_Canceled$View_Score)
+mean(ventyx_Canceled$PopDensity)
+mean(ventyx_Canceled$Household_)
+mean(ventyx_Canceled$members_env)
+sum(ventyx_Canceled$H_L_W == "Low")/sum(ventyx_Canceled$H_L_W == "High")
+
+#Sum of projects with articles
+sum(ventyx_Operating_Canceled$Google_Sentiment != 0)
+
+#Average number of articles per project
+google_df$Sum <- table(google_df$ProjectName)[google_df$ProjectName]
+mean(google_df$Sum)
+
+#Evaluating the average project
+mean_project <- c(1149.821, 65.11366, 0.2926, 57.90, 50516.88, 117.08, "High", "Texas", 1346.125)
+mean_project <- as.data.frame(mean_project)
+average_project <- mean_project # change name of df so that row and df aren't the same name
+average_project <- t(average_project)
+colnames(average_project) <- c("TimelineDa", "View_Score", "Google_Sentiment", "PopDensity", "Household_", "Capacity", "H_L_W", "State", "members_env")
+
+average_project <- as.data.frame(average_project)
+average_project[1:6] <- lapply(average_project, function(x) as.numeric(as.character(x)))
+average_project[9] <- lapply(average_project, function(x) as.numeric(as.character(x)))
+average_project$H_L_W <- as.factor(average_project$H_L_W)
+average_project$State <- as.factor(average_project$State)
+```
+
 
 #### Run Regressions
 
@@ -428,8 +476,9 @@ jtools::summ(linear_reg_sentiment)
 ```{r logistic_regression_all}
 
 #For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
-train <- ventyx_Operating_Canceled[1:800,]
-test <- ventyx_Operating_Canceled[801:871,]
+ventyx_shuffled <- ventyx_Operating_Canceled[sample(nrow(ventyx_Operating_Canceled)),] #to shuffle dataset
+train <- ventyx_shuffled[1:800,]
+test <- ventyx_shuffled[801:868,]
 
 #To test the reversal of values if we switch "High" impact areas to "Low" and vice verse
 test_reversed <- test %>% 
@@ -494,8 +543,9 @@ Concordance(test$Canceled, pred_probs$fit) #a concordance of ~0.9 is a high qual
 ```{r logistic_regression_all_NoZeroes}
 
 #For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
-train_NoZeroes <- Ventyx_Operating_Canceled_NoZeros[1:206,]
-test_NoZeroes <- Ventyx_Operating_Canceled_NoZeros[207:276,]
+ventyx_shuffled_NoZeroes <- Ventyx_Operating_Canceled_NoZeros[sample(nrow(Ventyx_Operating_Canceled_NoZeros)),] #to shuffle dataset
+train_NoZeroes <- ventyx_shuffled_NoZeroes[1:275,]
+test_NoZeroes <- ventyx_shuffled_NoZeroes[207:276,]
 
 #Next, we run the logistic regression
 logistic_reg_all_NoZeroes <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + members_env + Google_Sentiment*H_L_W, family = binomial, data = train_NoZeroes)
@@ -534,10 +584,33 @@ plotROC(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #the graph has a steep 
 Concordance(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #a concordance of ~0.65 which is pretty good
 ```
 
+
+```{r Other_predictions}
+
+#Predicting cancelation for truncated projects
+pred_probs_trunc <- predict(logistic_reg_all, newdata=ventyx_Truncated, type='response', se.fit = TRUE)
+pred_probs_trunc_df <- data.frame(ventyx_Truncated, pred_probs_trunc$fit, pred_probs_trunc$se.fit)
+pred_probs_trunc_df <- pred_probs_trunc_df %>% 
+  rename(Probability = pred_probs_trunc.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+mean(pred_probs_trunc_df$Probability)
+
+#Predicting cancelation for the average project
+mean_pred_probs <- predict(logistic_reg_all, newdata=average_project, type='response', se.fit = TRUE)
+mean_pred_probs_df <- data.frame(average_project, mean_pred_probs$fit, mean_pred_probs$se.fit)
+mean_pred_probs_df <- mean_pred_probs_df %>% 
+  rename(Probability = mean_pred_probs.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+#32% odds of cancelation
+```
+
+
 ### Visualization
 
-```{r logistic_plot}
+```{r prediction_plots}
 
+#With Zeroes
 ggplot(pred_probs_df, aes(x = Publicity, y = Probability)) + 
   geom_line() + 
   #geom_ribbon(aes(ymin = Probability - pred_probs.se.fit, ymax = Probability + pred_probs.se.fit), alpha = 0.3) +
@@ -546,6 +619,7 @@ ggplot(pred_probs_df, aes(x = Publicity, y = Probability)) +
   ylab("Probability of Cancellation\n") +
   xlab("\nPublicity Score")
 
+#With no-zeroes
 ggplot(pred_probs_df_NoZeroes, aes(x = Publicity, y = Probability)) + 
   geom_line() + 
   #geom_ribbon(aes(ymin = Probability - pred_probs_NoZeroes.se.fit, ymax = Probability + pred_probs_NoZeroes.se.fit), alpha = 0.3) +
@@ -554,144 +628,102 @@ ggplot(pred_probs_df_NoZeroes, aes(x = Publicity, y = Probability)) +
   ylab("Probability of Cancellation\n") +
   xlab("\nPublicity Score")
 
+#Using truncated data (best one)
+ggplot(pred_probs_trunc_df, aes(x = Publicity, y = Probability)) + 
+  geom_line(color = "navy blue") + 
+  #geom_ribbon(aes(ymin = Probability - pred_probs_NoZeroes.se.fit, ymax = Probability + pred_probs_NoZeroes.se.fit), alpha = 0.3) +
+  theme_classic() + 
+  scale_x_continuous(trans = "reverse") +
+  ylab("Probability of Cancellation\n") +
+  xlab("\nPublicity Score")
+
+#Plot with probabilities of cancelation > 50%
+pred_probs_trunc_df_Above50 <- pred_probs_trunc_df %>% 
+  filter(Probability > 0.5)
+
+pred_probs_trunc_df_Above50_Low <- pred_probs_trunc_df %>% 
+  filter(H_L_W == "Low") %>% 
+  filter(Probability > 0.5)
+
+pred_probs_trunc_df_Above50_High <- pred_probs_trunc_df %>% 
+  filter(H_L_W == "High") %>% 
+  filter(Probability > 0.5)
+
+mean(pred_probs_trunc_df_Above50_High$Probability)
+mean(pred_probs_trunc_df_Above50_Low$Probability)
+
+ggplot(pred_probs_trunc_df_Above50, aes(x = H_L_W, fill = H_L_W)) +
+  geom_histogram(width = 0.7, stat = "count") +
+  theme_classic() + 
+  xlab("Project Location") +
+  ylab("Number of Projects\n") +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_discrete(name = "Location") +
+  ggtitle("Unfinished Projects with a Probability of Cancelation Greater than 50%\n")
 ```
 
+```{r distributions_sentiment}
 
-```{r official_reg_ploted}
+#Canceled and Operating Sentiment
 
-## everything
-regression1 <- tidy(linear_reg_all)
+#### USED IN REPORT
+ggplot(filter(ventyx_Operating_Canceled, Google_Sentiment != 0), aes(x = Google_Sentiment, fill = OnlyCancel)) + # without 0s
+  geom_histogram(bins = 20) +
+  xlim(-1.5, 2) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_manual(name = "Canceled", values = c("navy blue","red")) +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='yellow', size = 2) +
+  xlab("Sentiment") + ylab("Number of Projects\n") + ggtitle("Sentiment Distribution - Canceled and Operating Projects")
+####
 
-dw_plot_1<-dwplot(regression1, dot_args = list(colour = "firebrick"), whisker_args = list(colour = "firebrick"))+
-    theme_bw()+
-  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
-  labs(x = "Timeline (days)")
-dw_plot_1
-# Main variables
-dw_plot_2 <- dwplot(regression1[!grepl("^State*", regression3$term),] %>%  
-   relabel_predictors(renamed_variables), 
-   dot_args = list(colour = "darkgreen"),
-   whisker_args = list(colour = "darkgreen")
-   )+
-  labs(x = "Timeline (days)", y = "")+
-  ggplot2::geom_vline(xintercept = 0, colour = "black", linetype = 2)+
-  theme_classic()
-  # theme(
-  #   # legend.background = element_rect(colour="grey80"),
-  #   panel.background = element_rect(fill = "transparent"), # bg of the panel
-  #   plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
-  #   panel.grid.major = element_blank(), # get rid of major grid
-  #   panel.grid.minor = element_blank(), # get rid of minor grid
-  #   legend.background = element_rect(fill = "transparent"), # get rid of legend bg
-  #   legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
-  # )
-
-dw_plot_2
-
-dw_plot_3 <- 
-  dwplot(regression1[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression1$term),]%>% 
-   relabel_predictors(renamed_variables), 
-   dot_args = list(colour = "#6fa4dc"),
-   whisker_args = list(colour = "#6fa4dc"),
-   vline = geom_vline(xintercept = 0, colour = "black", linetype = 2)
-   )+
-  labs(x = "Timeline (days)", y = "")+
-  theme_classic()
-
-dw_plot_3
-
-```
+ggplot(ventyx_Operating_Canceled, aes(x = Google_Sentiment, fill = Canceled)) + # with 0s
+  geom_histogram(bins = 20) +
+  xlim(-1.5, 2) +
+  ylim(0, 50) +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red') +
+  geom_vline(aes(xintercept = median(Google_Sentiment)),col='green')
 
 
-```{r marginal_effects_term}
+#Canceled Sentiment
+ggplot(ventyx_Canceled, aes(x = Google_Sentiment)) + # with 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
 
-GP_red <- "#cc4125"
-GP_blue <- "#6fa4dc"
+ggplot(filter(ventyx_Canceled, Google_Sentiment != 0), aes(x = Google_Sentiment)) + # without 0s
+  geom_histogram(bins = 20, fill = "navy blue") +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red', size = 2) +
+  xlim(-1.5, 2) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  xlab("Sentiment") + ylab("Number of Projects\n") + ggtitle("Sentiment Distribution - Canceled Projects")
 
-vcov <- vcov(linear_reg_all)
 
-interaction_term_plot<-
-  plot_model(linear_reg_all,
-             type = "int", mdrt.values = "meansd", 
-             axis.title = "", title = "", 
-             legend.title = "",
-             line.size = 1.5,
-             colors = c(GP_red, GP_blue),
-             alpha = 0.05,
-             ci.lvl = 0.95 # list(ci.lvl = 0.95, alpha = 0.1, line.size = 0.5)
-             # line.size = 0.5,
-             # se = T
-             )
+#Operating Sentiment
+ggplot(ventyx_Operating, aes(x = Google_Sentiment)) + # with 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
+  
 
-interaction_term_plot
-
-```
-
-```{r marg_effect_second_option}
-
-mydf <- ggpredict(linear_reg_all, 
-terms = c("Google_Sentiment", "H_L_W"))
-
-mydf <- ggpredict(linear_reg_all, 
-terms = c("Timelineda", "OnlyCancel"))
-
-interaction_plot_2 <- ggplot(mydf, aes(x, predicted, color = group))+
-  geom_line()+
-  geom_ribbon(aes(ymin=conf.low, ymax = conf.high, fill=group), alpha = 0, linetype=2)
-+
-  # xlab("google news publicity score\n")+ylab("redicted value of timeline days(days)\n")+
-  # labs("")+
-  # scale_color_manual(labels = c("High", "Low"), values = c(GP_blue, GP_red))+
-  # theme_classic()
-
-interaction_plot_2
+ggplot(filter(ventyx_Operating, Google_Sentiment != 0), aes(x = Google_Sentiment)) + # without 0s
+  geom_histogram(bins = 20, fill = "navy blue") +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red', size = 2) +
+  xlim(-1.5, 2) +
+  ylim(0,30) + 
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  xlab("Sentiment") + ylab("Number of Projects\n") + ggtitle("Sentiment Distribution - Operating Projects")
 
 ```
 
+```{r distributions_timeline}
 
-```{r separated_plots_variables_white_background}
-
-
-dw_plot3_a <- 
-  dwplot(regression3[!grepl("^State*|View_Score|PopDensity_mi|Household_MedianIncome|Capacity|NU_Sentiment|NU_Sentiment:H_L_WLow", regression3$term),]%>% 
-   relabel_predictors(renamed_variables), 
-   dot_args = list(colour = "#6fa4dc", lwd = 5),
-   whisker_args = list(colour = "#6fa4dc", lwd = 1.5),
-   vline = geom_vline(xintercept = 0, colour = "white", linetype = 2, lwd = 1.5)
-   )+
-  # ggplot2::geom_vline(xintercept = 0, colour = "white", linetype = 2, lwd = 1.5,)+
-  labs(x = "Timeline (days)", y = "")+
-  theme_classic()+
-  # ggtitle("Regression output: all variables including NU and Google \n scores, interaction terms. N/A scores coded as 0:")+
-  theme(
-    # legend.background = element_rect(colour="black"),
-        axis.text.y = element_text(size = 20, hjust=1, colour = "white"),
-        axis.text.x = element_text(size = 20, hjust=0.5, vjust = -1, colour = "white"),
-        axis.title.x.bottom = element_text(size=24, vjust = -3.5,
-                                           margin = margin(t = -2, r = 20, b = 35, l = 0),
-                                           colour = "white",
-                                           face = "bold"),
-        axis.ticks = element_line(size = 2, colour = "white"),
-        # axis.ticks.margin =  unit(c(1,-1),'cm'),
-        axis.ticks.length=unit(0.2,"cm"),
-        # panel.border = element_rect(linetype = "solid", colour = "black", size=1)),
-        axis.line = element_line(colour = 'white', size = 1.5),
-    # legend.background = element_rect(colour="grey80"),
-        panel.background = element_rect(fill = "transparent"), # bg of the panel
-        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
-        panel.grid.major = element_blank(), # get rid of major grid
-        panel.grid.minor = element_blank(), # get rid of minor grid
-        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
-        legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
-    )
-
-dw_plot3_a
-
-# ggsave(dw_plot3, filename = "Large_var_plot.png",  bg = "transparent", width = 14, height = 7.3)
-
+ggplot(ventyx_Operating_Canceled, aes(x = TimelineDa, fill = OnlyCancel)) +
+  geom_histogram(bins = 20) + 
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_manual(name = "Canceled", values = c("navy blue","red")) +
+  xlab("Timeline (days)") + ylab("Number of Projects\n") + ggtitle("Timeline Distribution - Canceled and Operating Projects")
 
 ```
-
-
-
 
