@@ -421,3 +421,60 @@ ggplot(ventyx_Operating, aes(x = TimelineDa)) +
 ```
 
 
+####Distribution of publicity scores
+
+I'm thinking about how to tell the publicity story to developers. How do our results impact their process? How can we help them choose locations?
+
+Where are the projects with good publicity and bad publicity?
+
+- Spatial distribution of publicity by county and state (operating projects and cancelled projects)
+
+```{r}
+
+# group by state --> summary statistics
+
+op_by_state <- ventyx_Operating_Canceled %>% 
+  group_by(State) %>% 
+  tally()
+
+
+#  summarise(mean_pub = mean(Google_Sentiment),
+           # SE = sd(Google_Sentiment))
+  
+  
+
+can_by_state <- ventyx_Operating_Canceled %>% 
+  group_by(State) %>% 
+  summarise(mean_pub = mean(Google_Sentiment),
+            SE = sd(Google_Sentiment))
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
