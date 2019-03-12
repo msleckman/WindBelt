@@ -328,9 +328,6 @@ ventyx_df_google_Sen <- ventyx_df_google_Sen %>%
   filter(!View_Score < 0) %>% 
   filter(!is.na(Household_))
 
-### For descriptive stats
-#write.csv(ventyx_df_NU_google_Sen, "~/Desktop/ventyx_df_NU_google_Sen_01.18.19.csv")
-
 ```
 
 ```{r organize_for_regressions}
@@ -402,7 +399,8 @@ ventyx_Truncated <- ventyx_df_google_Sen %>%
   filter(Artificial == "Yes")
 
 #ventyx_Operating_Canceled$OnlyCancel <- relevel(ventyx_Operating_Canceled$OnlyCancel, ref = "No")
-# write_csv(ventyx_df_google_Sen, "G:/Data/VENTYX_DATASET/ventyx_df_google_Sen_022219_2.csv")
+#write_csv(ventyx_Operating_Canceled, "ventyx_Operating_Canceled_03-11-2019.csv")
+#write_csv(ventyx_df_google_Sen, "ventyx_all_03-11-2019.csv")
 
 ```
 
@@ -722,6 +720,7 @@ ggplot(ventyx_Operating_Canceled, aes(x = TimelineDa, fill = OnlyCancel)) +
   geom_histogram(bins = 20) + 
   theme_classic() +
   scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,4500)) + expand_limits(x = 0, y = 0) +
   scale_fill_manual(name = "Canceled", values = c("navy blue","red")) +
   xlab("Timeline (days)") + ylab("Number of Projects\n") + ggtitle("Timeline Distribution - Canceled and Operating Projects")
 
