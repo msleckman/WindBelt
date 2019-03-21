@@ -80,6 +80,9 @@ library(pscl)
 library(car)
 library(InformationValue)
 library(boot)
+library(stargazer)
+library(pwr)
+library(caret)
 
 ```
 
@@ -475,7 +478,7 @@ jtools::summ(linear_reg_sentiment)
 
 #For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
 ventyx_shuffled <- ventyx_Operating_Canceled[sample(nrow(ventyx_Operating_Canceled)),] #to shuffle dataset
-train <- ventyx_shuffled[1:800,]
+train <- ventyx_shuffled[1:868,]
 test <- ventyx_shuffled[801:868,]
 
 #To test the reversal of values if we switch "High" impact areas to "Low" and vice verse
@@ -483,7 +486,7 @@ test_reversed <- test %>%
   mutate(H_L_W = ifelse(H_L_W == "High", "Low","High"))
 
 #Next, we run the logistic regression
-logistic_reg_all <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + members_env + Google_Sentiment*H_L_W, family = binomial, data = train)
+logistic_reg_all <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*H_L_W + State, family = binomial, data = train)
 
 #View model results
 summary(logistic_reg_all) #coefficients represent log odds
@@ -546,7 +549,7 @@ train_NoZeroes <- ventyx_shuffled_NoZeroes[1:275,]
 test_NoZeroes <- ventyx_shuffled_NoZeroes[207:276,]
 
 #Next, we run the logistic regression
-logistic_reg_all_NoZeroes <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + State + members_env + Google_Sentiment*H_L_W, family = binomial, data = train_NoZeroes)
+logistic_reg_all_NoZeroes <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*H_L_W + State, family = binomial, data = train_NoZeroes)
 
 #View model results
 summary(logistic_reg_all_NoZeroes) #coefficients represent log odds
@@ -580,6 +583,35 @@ plotROC(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #the graph has a steep 
 
 #Measure concordance, which measures how well high probability scores match up with cancelation values, and vice versa.
 Concordance(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #a concordance of ~0.65 which is pretty good
+```
+
+```{r bivariate_regression}
+#This is to test our sample size
+ventyx_Unfiltered <- read_csv("ventyx_unfiltered_03-19-2019.csv")
+colnames(ventyx_Unfiltered) <- c("ProjectNam","ProjectDev","ProjectOwn","State","County","Latitude","Longitude","Capacity","CurrentPha","TimelineDa","OnlyCancel")
+
+unfiltered_capacity <- ventyx_Unfiltered$Capacity
+filtered_capacity <- ventyx_df_google_Sen$Capacity
+var.test(unfiltered_capacity, filtered_capacity) #variances are not equal (p = 0.29)
+wilcox.test(unfiltered_capacity, filtered_capacity)
+
+unfiltered_timeline <- ventyx_Unfiltered$TimelineDa
+filtered_timeline <- ventyx_df_google_Sen$TimelineDa
+var.test(unfiltered_timeline, filtered_timeline) #variances are not equal (p = 0.29)
+wilcox.test(unfiltered_timeline, filtered_timeline)
+
+unfiltered_canceled <- ifelse(ventyx_Unfiltered$OnlyCancel == "Yes",1,0)
+filtered_canceled <- ifelse(ventyx_df_google_Sen$OnlyCancel == "Yes",1,0)
+var.test(unfiltered_canceled, filtered_canceled) #variances are not equal (p = 0.29)
+wilcox.test(unfiltered_canceled, filtered_canceled)
+
+logistic_reg_bivariate <- glm(Canceled ~  H_L_W, family = binomial, data = train)
+summary(logistic_reg_bivariate)
+
+
+varImp(logistic_reg_bivariate)
+
+cohen.ES(test = "f2", size = "medium")
 ```
 
 
@@ -724,5 +756,21 @@ ggplot(ventyx_Operating_Canceled, aes(x = TimelineDa, fill = OnlyCancel)) +
   scale_fill_manual(name = "Canceled", values = c("navy blue","red")) +
   xlab("Timeline (days)") + ylab("Number of Projects\n") + ggtitle("Timeline Distribution - Canceled and Operating Projects")
 
+```
+
+```{r stargazer}
+
+#c("TimelineLength","ViewScore","Sentiment","PopDensity","MedianIncome","Capacity","LowRisk","EnvMemberships","Arkansas","Colorado","Illinois","Indiana","Iowa","Kansas","Minnesota","Missouri","Montanta","Nebraska","NewMexico","NorthDakota","Ohio","Oklahoma","SouthDakota","Wyoming","Sentiment*LowRisk")
+#Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*H_L_W + State
+
+stargazer(logistic_reg_all, logistic_reg_all_NoZeroes,
+          order=c(7,3),
+          type = "text", 
+          title = "Logistic Regressions", 
+          dep.var.labels = "Log Odds of Cancellation", 
+          covariate.labels =c("LowRisk","Sentiment","TimelineLength","ViewScore","PopDensity","MedianIncome","Capacity","EnvMemberships","Sentiment*LowRisk"),
+          column.labels = c("NAs As Zeroes","NAs Removed"),
+          no.space = FALSE,
+          omit=c("State"))
 ```
 
