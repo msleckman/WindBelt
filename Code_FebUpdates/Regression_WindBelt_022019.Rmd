@@ -83,6 +83,8 @@ library(boot)
 library(stargazer)
 library(pwr)
 library(caret)
+library(plyr)
+library(gt)
 
 ```
 
@@ -605,7 +607,7 @@ filtered_canceled <- ifelse(ventyx_df_google_Sen$OnlyCancel == "Yes",1,0)
 var.test(unfiltered_canceled, filtered_canceled) #variances are not equal (p = 0.29)
 wilcox.test(unfiltered_canceled, filtered_canceled)
 
-logistic_reg_bivariate <- glm(Canceled ~  H_L_W, family = binomial, data = train)
+logistic_reg_bivariate <- glm(Canceled ~  H_L_W, family = binomial, data = ventyx_df_google_Sen)
 summary(logistic_reg_bivariate)
 
 
@@ -688,7 +690,7 @@ ggplot(pred_probs_trunc_df_Above50, aes(x = H_L_W, fill = H_L_W)) +
   xlab("Project Location") +
   ylab("Number of Projects\n") +
   scale_y_continuous(expand = c(0,0)) +
-  scale_fill_discrete(name = "Location") +
+  scale_fill_manual(name = "Location",values = c("red","navy blue")) +
   ggtitle("Unfinished Projects with a Probability of Cancelation Greater than 50%\n")
 ```
 
@@ -773,4 +775,40 @@ stargazer(logistic_reg_all, logistic_reg_all_NoZeroes,
           no.space = FALSE,
           omit=c("State"))
 ```
+
+```{r}
+
+
+reg_DF <- as.data.frame(summary(logistic_reg_all)$coefficients)
+reg_DF <- add_rownames(reg_DF, "Variable") %>% 
+  select(-"z value") 
+
+reg_DF <- reg_DF[!grepl("State", reg_DF$Variable),]
+reg_DF$Variable <- c("Intercept","TimelineLength","ViewScore","Sentiment","PopDensity","MedianIncome","Capacity","LowRisk","EnvMemberships","Sentiment*LowRisk")
+colnames(reg_DF) <- c("Variable","Coefficient","SD","P-value")
+
+round_df <- function(x, digits) {
+    # round all numeric variables
+    # x: data frame 
+    # digits: number of digits to round
+    numeric_columns <- sapply(x, mode) == 'numeric'
+    x[numeric_columns] <-  round(x[numeric_columns], digits)
+    x
+}
+
+reg_DF_rounded <- round_df(reg_DF, 5)
+
+reg_DF_rounded %>% 
+  gt() %>% 
+  tab_header(
+    title = "Logistic Regression Results", # Add a title
+    subtitle = "Predicting Log Odds of Cancellation"# And a subtitle
+  ) %>%
+  fmt_passthrough( # Not sure about this but it works...
+    columns = vars(Variable) # First column: supp (character)
+  )
+
+```
+
+
 
