@@ -776,7 +776,7 @@ stargazer(logistic_reg_all, logistic_reg_all_NoZeroes,
           omit=c("State"))
 ```
 
-```{r}
+```{r gt_table}
 
 
 reg_DF <- as.data.frame(summary(logistic_reg_all)$coefficients)
@@ -811,4 +811,26 @@ reg_DF_rounded %>%
 ```
 
 
+```{r examples_for_poster}
+
+#First, find means of all control variables and create vectors with repeated entries
+#This is because we want all these variables to be the same across the different example projects, so we can see the effect of sentiment/low-risk
+popDensity <- rep(mean(ventyx_Operating_Canceled$PopDensity),4)          #60 thousand
+householdMedian <- rep(mean(ventyx_Operating_Canceled$Household_),4)     #$50,525
+viewScore <- rep(mean(ventyx_Operating_Canceled$View_Score),4)           #65 Road Points
+capacity <- rep(mean(ventyx_Operating_Canceled$Capacity),4)              #117 MW
+timelineDays <- rep(mean(ventyx_Operating_Canceled$TimelineDa),4)        #1150 Days
+environMemberships <- rep(mean(ventyx_Operating_Canceled$members_env),4) #1348 Members
+state <- rep("Texas",4)
+
+#Our key variables for comparison
+sentiment <- c(0.1, 0.1, -0.1, -0.1)
+location <- c("Low","High","Low","High")
+
+example_df <- data.frame(state, popDensity, householdMedian, capacity, viewScore, timelineDays, environMemberships, sentiment, location)
+names(example_df) <- c("State","PopDensity","Household_","Capacity","View_Score","TimelineDa","members_env","Google_Sentiment","H_L_W")
+
+pred_probs_example <- predict(logistic_reg_all, newdata=example_df, type='response', se.fit = TRUE)
+pred_probs_example_df <- data.frame(example_df, pred_probs_example$fit, pred_probs_example$se.fit)
+```
 
