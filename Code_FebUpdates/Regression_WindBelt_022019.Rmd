@@ -681,17 +681,21 @@ pred_probs_trunc_df_Above50_High <- pred_probs_trunc_df %>%
   filter(H_L_W == "High") %>% 
   filter(Probability > 0.5)
 
-mean(pred_probs_trunc_df_Above50_High$Probability)
-mean(pred_probs_trunc_df_Above50_Low$Probability)
+#Plot with probabilities of cancelation > 70%
+pred_probs_trunc_df_Above75 <- pred_probs_trunc_df %>% 
+  filter(Probability > 0.75)
 
-ggplot(pred_probs_trunc_df_Above50, aes(x = H_L_W, fill = H_L_W)) +
+mean(pred_probs_trunc_df_Above75_High$Probability)
+mean(pred_probs_trunc_df_Above75_Low$Probability)
+
+ggplot(pred_probs_trunc_df_Above75, aes(x = H_L_W, fill = H_L_W)) +
   geom_histogram(width = 0.7, stat = "count") +
   theme_classic() + 
   xlab("Project Location") +
   ylab("Number of Projects\n") +
   scale_y_continuous(expand = c(0,0)) +
   scale_fill_manual(name = "Location",values = c("red","navy blue")) +
-  ggtitle("Unfinished Projects with a Probability of Cancelation Greater than 50%\n")
+  ggtitle("Unfinished Projects with a Probability of Cancellation Greater than 75%\n")
 ```
 
 ```{r distributions_sentiment}
