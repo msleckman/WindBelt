@@ -838,3 +838,14 @@ pred_probs_example <- predict(logistic_reg_all, newdata=example_df, type='respon
 pred_probs_example_df <- data.frame(example_df, pred_probs_example$fit, pred_probs_example$se.fit)
 ```
 
+```{r case_studies}
+boone <- filter(ventyx_Operating_Canceled, ProjectNam == "BooneCounty")
+minonk <- filter(ventyx_Operating_Canceled, ProjectNam == "MinonkWindFarm")
+
+boone_minonk_df <- ventyx_Operating_Canceled %>% 
+  filter(ProjectNam == "BooneCounty" | ProjectNam == "MinonkWindFarm")
+
+pred_probs_boone_minonk <- predict(logistic_reg_all, newdata=boone_minonk_df, type='response', se.fit = TRUE)
+pred_probs_boone_minonk_df <- data.frame(boone_minonk_df, pred_probs_boone_minonk$fit, pred_probs_boone_minonk$se.fit)
+```
+
