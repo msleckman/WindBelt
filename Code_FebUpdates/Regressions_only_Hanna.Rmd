@@ -1,0 +1,415 @@
+---
+title: "Regression_only"
+author: "Hanna Buechi"
+date: "April 29, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r packages}
+
+library(tidyverse)
+library(boot)
+library(pscl)
+library(car)
+library(InformationValue)
+
+```
+
+
+#### Run Regressions
+
+```{r logistic_regression_all}
+
+#For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
+ventyx_shuffled <- ventyx_Operating_Canceled[sample(nrow(ventyx_Operating_Canceled)),] #to shuffle dataset
+train <- ventyx_shuffled[1:868,]
+test <- ventyx_shuffled[801:868,]
+
+#To test the reversal of values if we switch "High" impact areas to "Low" and vice verse
+test_reversed <- test %>% 
+  mutate(H_L_W = ifelse(H_L_W == "High", "Low","High"))
+
+#Next, we run the logistic regression
+logistic_reg_all <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*H_L_W + State, family = binomial, data = train)
+
+#View model results
+summary(logistic_reg_all) #coefficients represent log odds
+exp(coef(logistic_reg_all)) #exponentiated coefficients
+
+#Run anova to compare null deviance vs. residual deviance. The greater the difference the better.
+anova(logistic_reg_all, test="Chisq")
+
+#Diagnostic plots
+glm.diag.plots(logistic_reg_all)
+
+#To view the logistic model equivalent of R-squared
+pR2(logistic_reg_all)
+
+#Check for multicollinearity
+vif(logistic_reg_all) #low multicollinearity
+
+#Now we predict the probability of the test projects being canceled
+pred_probs <- predict(logistic_reg_all, newdata=test, type='response', se.fit = TRUE)
+pred_probs_df <- data.frame(test, pred_probs$fit, pred_probs$se.fit)
+pred_probs_df <- pred_probs_df %>% 
+  rename(Probability = pred_probs.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+#Now predict probabilities for reversed values
+pred_probs_reversed <- predict(logistic_reg_all, newdata=test_reversed, type='response', se.fit = TRUE)
+pred_probs_df_reversed <- data.frame(test, pred_probs_reversed$fit, pred_probs_reversed$se.fit)
+pred_probs_df_reversed <- pred_probs_df_reversed %>% 
+  rename(Probability = pred_probs_reversed.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+#Probability means
+mean(pred_probs_df$Probability)
+mean(pred_probs_df_reversed$pred_probs_reversed.fit)
+
+# pred_low <- pred_probs_df %>% 
+#   filter(H_L_W == "Low")
+# pred_high <- pred_probs_df %>% 
+#   filter(H_L_W == "High")
+# mean(pred_low$Probability)
+# mean(pred_high$Probability)
+
+#To evaluate the misclassification of predicted cancelations and actual cancelations -- essentially, how accurate are the predictions?
+optCutOff <- optimalCutoff(test$Canceled, pred_probs$fit)
+misClassError(test$Canceled, pred_probs$fit, threshold = optCutOff) #~14% misclassification error, so overall pretty accurate
+
+#Plot ROC, which traces the percentage of true positives accurately predicted by the model as the prediction probability cutoff is lowered from 1 to 0.
+plotROC(test$Canceled, pred_probs$fit) #the graph has a steep curve, which indicated a good quality model
+
+#Measure concordance, which measures how well high probability scores match up with cancelation values, and vice versa.
+Concordance(test$Canceled, pred_probs$fit) #a concordance of ~0.9 is a high quality model
+
+```
+
+### Some other regressions (Hanna)
+
+(Based on above, including sentiment 0s)
+
+```{r}
+
+#Next, we run the logistic regression
+logistic_reg_income_pub <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*Household_, family = binomial, data = train)
+
+#View model results
+summary(logistic_reg_income_pub) #coefficients represent log odds
+exp(coef(logistic_reg_income_pub)) #exponentiated coefficients
+
+```
+
+### Alex's other regressions
+
+```{r logistic_regression_all_NoZeroes}
+
+#For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
+ventyx_shuffled_NoZeroes <- Ventyx_Operating_Canceled_NoZeros[sample(nrow(Ventyx_Operating_Canceled_NoZeros)),] #to shuffle dataset
+train_NoZeroes <- ventyx_shuffled_NoZeroes[1:275,]
+test_NoZeroes <- ventyx_shuffled_NoZeroes[207:276,]
+
+#Next, we run the logistic regression
+logistic_reg_all_NoZeroes <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*H_L_W + State, family = binomial, data = train_NoZeroes)
+
+#View model results
+summary(logistic_reg_all_NoZeroes) #coefficients represent log odds
+exp(coef(logistic_reg_all_NoZeroes)) #exponentiated coefficients
+
+#Run anova to compare null deviance vs. residual deviance. The greater the difference the better.
+anova(logistic_reg_all_NoZeroes, test="Chisq")
+
+#Diagnostic plots
+glm.diag.plots(logistic_reg_all_NoZeroes)
+
+#To view the logistic model equivalent of R-squared
+pR2(logistic_reg_all_NoZeroes)
+
+#Check for multicollinearity
+vif(logistic_reg_all_NoZeroes) #low multicollinearity except for state
+
+#Now we predict the probability of the test projects being canceled
+pred_probs_NoZeroes <- predict(logistic_reg_all_NoZeroes, newdata=test_NoZeroes, type='response', se.fit = TRUE)
+pred_probs_df_NoZeroes <- data.frame(test_NoZeroes, pred_probs_NoZeroes$fit, pred_probs_NoZeroes$se.fit)
+pred_probs_df_NoZeroes <- pred_probs_df_NoZeroes %>% 
+  rename(Probability = pred_probs_NoZeroes.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+#To evaluate the misclassification of predicted cancelations and actual cancelations -- essentially, how accurate are the predictions?
+optCutOff <- optimalCutoff(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit)
+misClassError(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit, threshold = optCutOff) #19% misclassification error, so overall pretty accurate
+
+#Plot ROC, which traces the percentage of true positives accurately predicted by the model as the prediction probability cutoff is lowered from 1 to 0.
+plotROC(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #the graph has a steep curve, but not as steep as the model with zeroes included
+
+#Measure concordance, which measures how well high probability scores match up with cancelation values, and vice versa.
+Concordance(test_NoZeroes$Canceled, pred_probs_NoZeroes$fit) #a concordance of ~0.65 which is pretty good
+```
+
+```{r bivariate_regression}
+#This is to test our sample size
+ventyx_Unfiltered <- read_csv("ventyx_unfiltered_03-19-2019.csv")
+colnames(ventyx_Unfiltered) <- c("ProjectNam","ProjectDev","ProjectOwn","State","County","Latitude","Longitude","Capacity","CurrentPha","TimelineDa","OnlyCancel")
+
+unfiltered_capacity <- ventyx_Unfiltered$Capacity
+filtered_capacity <- ventyx_df_google_Sen$Capacity
+var.test(unfiltered_capacity, filtered_capacity) #variances are not equal (p = 0.29)
+wilcox.test(unfiltered_capacity, filtered_capacity)
+
+unfiltered_timeline <- ventyx_Unfiltered$TimelineDa
+filtered_timeline <- ventyx_df_google_Sen$TimelineDa
+var.test(unfiltered_timeline, filtered_timeline) #variances are not equal (p = 0.29)
+wilcox.test(unfiltered_timeline, filtered_timeline)
+
+unfiltered_canceled <- ifelse(ventyx_Unfiltered$OnlyCancel == "Yes",1,0)
+filtered_canceled <- ifelse(ventyx_df_google_Sen$OnlyCancel == "Yes",1,0)
+var.test(unfiltered_canceled, filtered_canceled) #variances are not equal (p = 0.29)
+wilcox.test(unfiltered_canceled, filtered_canceled)
+
+logistic_reg_bivariate <- glm(Canceled ~  H_L_W, family = binomial, data = ventyx_df_google_Sen)
+summary(logistic_reg_bivariate)
+
+
+varImp(logistic_reg_bivariate)
+
+cohen.ES(test = "f2", size = "medium")
+```
+
+
+```{r Other_predictions}
+
+#Predicting cancelation for truncated projects
+pred_probs_trunc <- predict(logistic_reg_all, newdata=ventyx_Truncated, type='response', se.fit = TRUE)
+pred_probs_trunc_df <- data.frame(ventyx_Truncated, pred_probs_trunc$fit, pred_probs_trunc$se.fit)
+pred_probs_trunc_df <- pred_probs_trunc_df %>% 
+  rename(Probability = pred_probs_trunc.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+
+mean(pred_probs_trunc_df$Probability)
+
+#Predicting cancelation for the average project
+mean_pred_probs <- predict(logistic_reg_all, newdata=average_project, type='response', se.fit = TRUE)
+mean_pred_probs_df <- data.frame(average_project, mean_pred_probs$fit, mean_pred_probs$se.fit)
+mean_pred_probs_df <- mean_pred_probs_df %>% 
+  rename(Probability = mean_pred_probs.fit) %>% 
+  rename(Publicity = Google_Sentiment)
+#32% odds of cancelation
+```
+
+
+### Visualization
+
+```{r prediction_plots}
+
+#With Zeroes
+ggplot(pred_probs_df, aes(x = Publicity, y = Probability)) + 
+  geom_line() + 
+  #geom_ribbon(aes(ymin = Probability - pred_probs.se.fit, ymax = Probability + pred_probs.se.fit), alpha = 0.3) +
+  theme_classic() + 
+  scale_x_continuous(trans = "reverse") +
+  ylab("Probability of Cancellation\n") +
+  xlab("\nPublicity Score")
+
+#With no-zeroes
+ggplot(pred_probs_df_NoZeroes, aes(x = Publicity, y = Probability)) + 
+  geom_line() + 
+  #geom_ribbon(aes(ymin = Probability - pred_probs_NoZeroes.se.fit, ymax = Probability + pred_probs_NoZeroes.se.fit), alpha = 0.3) +
+  theme_classic() + 
+  scale_x_continuous(trans = "reverse") +
+  ylab("Probability of Cancellation\n") +
+  xlab("\nPublicity Score")
+
+#Using truncated data (best one)
+ggplot(pred_probs_trunc_df, aes(x = Publicity, y = Probability)) + 
+  geom_line(color = "navy blue") + 
+  #geom_ribbon(aes(ymin = Probability - pred_probs_NoZeroes.se.fit, ymax = Probability + pred_probs_NoZeroes.se.fit), alpha = 0.3) +
+  theme_classic() + 
+  scale_x_continuous(trans = "reverse") +
+  ylab("Probability of Cancellation\n") +
+  xlab("\nPublicity Score")
+
+#Plot with probabilities of cancelation > 50%
+pred_probs_trunc_df_Above50 <- pred_probs_trunc_df %>% 
+  filter(Probability > 0.5)
+
+pred_probs_trunc_df_Above50_Low <- pred_probs_trunc_df %>% 
+  filter(H_L_W == "Low") %>% 
+  filter(Probability > 0.5)
+
+pred_probs_trunc_df_Above50_High <- pred_probs_trunc_df %>% 
+  filter(H_L_W == "High") %>% 
+  filter(Probability > 0.5)
+
+#Plot with probabilities of cancelation > 70%
+pred_probs_trunc_df_Above75 <- pred_probs_trunc_df %>% 
+  filter(Probability > 0.75)
+
+mean(pred_probs_trunc_df_Above75_High$Probability)
+mean(pred_probs_trunc_df_Above75_Low$Probability)
+
+ggplot(pred_probs_trunc_df_Above75, aes(x = H_L_W, fill = H_L_W)) +
+  geom_histogram(width = 0.7, stat = "count") +
+  theme_classic() + 
+  xlab("Project Location") +
+  ylab("Number of Projects\n") +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_manual(name = "Location",values = c("red","navy blue")) +
+  ggtitle("Unfinished Projects with a Probability of Cancellation Greater than 75%\n")
+```
+
+```{r distributions_sentiment}
+
+#Canceled and Operating Sentiment
+
+#### USED IN REPORT
+ggplot(filter(ventyx_Operating_Canceled, Google_Sentiment != 0), aes(x = Google_Sentiment, fill = OnlyCancel)) + # without 0s
+  geom_histogram(bins = 20) +
+  xlim(-1.5, 2) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_manual(name = "Canceled", values = c("navy blue","red")) +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='yellow', size = 2) +
+  xlab("Sentiment") + ylab("Number of Projects\n") + ggtitle("Sentiment Distribution - Canceled and Operating Projects")
+####
+
+ggplot(ventyx_Operating_Canceled, aes(x = Google_Sentiment, fill = Canceled)) + # with 0s
+  geom_histogram(bins = 20) +
+  xlim(-1.5, 2) +
+  ylim(0, 50) +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red') +
+  geom_vline(aes(xintercept = median(Google_Sentiment)),col='green')
+
+
+#Canceled Sentiment
+ggplot(ventyx_Canceled, aes(x = Google_Sentiment)) + # with 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
+
+ggplot(filter(ventyx_Canceled, Google_Sentiment != 0), aes(x = Google_Sentiment)) + # without 0s
+  geom_histogram(bins = 20, fill = "navy blue") +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red', size = 2) +
+  xlim(-1.5, 2) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  xlab("Sentiment") + ylab("Number of Projects\n") + ggtitle("Sentiment Distribution - Canceled Projects")
+
+
+#Operating Sentiment
+ggplot(ventyx_Operating, aes(x = Google_Sentiment)) + # with 0s
+  geom_histogram() +
+  xlim(-1.5, 2)
+  
+
+ggplot(filter(ventyx_Operating, Google_Sentiment != 0), aes(x = Google_Sentiment)) + # without 0s
+  geom_histogram(bins = 20, fill = "navy blue") +
+  geom_vline(aes(xintercept = mean(Google_Sentiment)),col='red', size = 2) +
+  xlim(-1.5, 2) +
+  ylim(0,30) + 
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  xlab("Sentiment") + ylab("Number of Projects\n") + ggtitle("Sentiment Distribution - Operating Projects")
+
+```
+
+```{r distributions_timeline}
+
+ggplot(ventyx_Operating_Canceled, aes(x = TimelineDa, fill = OnlyCancel)) +
+  geom_histogram(bins = 20) + 
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,4500)) + expand_limits(x = 0, y = 0) +
+  scale_fill_manual(name = "Canceled", values = c("navy blue","red")) +
+  xlab("Timeline (days)") + ylab("Number of Projects\n") + ggtitle("Timeline Distribution - Canceled and Operating Projects")
+
+```
+
+```{r stargazer}
+
+#c("TimelineLength","ViewScore","Sentiment","PopDensity","MedianIncome","Capacity","LowRisk","EnvMemberships","Arkansas","Colorado","Illinois","Indiana","Iowa","Kansas","Minnesota","Missouri","Montanta","Nebraska","NewMexico","NorthDakota","Ohio","Oklahoma","SouthDakota","Wyoming","Sentiment*LowRisk")
+#Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*H_L_W + State
+
+stargazer(logistic_reg_all, logistic_reg_all_NoZeroes,
+          order=c(7,3),
+          type = "text", 
+          title = "Logistic Regressions", 
+          dep.var.labels = "Log Odds of Cancellation", 
+          covariate.labels =c("LowRisk","Sentiment","TimelineLength","ViewScore","PopDensity","MedianIncome","Capacity","EnvMemberships","Sentiment*LowRisk"),
+          column.labels = c("NAs As Zeroes","NAs Removed"),
+          no.space = FALSE,
+          omit=c("State"))
+```
+
+```{r gt_table}
+
+
+reg_DF <- as.data.frame(summary(logistic_reg_all)$coefficients)
+reg_DF <- add_rownames(reg_DF, "Variable") %>% 
+  select(-"z value") 
+
+reg_DF <- reg_DF[!grepl("State", reg_DF$Variable),]
+reg_DF$Variable <- c("Intercept","TimelineLength","ViewScore","Sentiment","PopDensity","MedianIncome","Capacity","LowRisk","EnvMemberships","Sentiment*LowRisk")
+colnames(reg_DF) <- c("Variable","Coefficient","SD","P-value")
+
+round_df <- function(x, digits) {
+    # round all numeric variables
+    # x: data frame 
+    # digits: number of digits to round
+    numeric_columns <- sapply(x, mode) == 'numeric'
+    x[numeric_columns] <-  round(x[numeric_columns], digits)
+    x
+}
+
+reg_DF_rounded <- round_df(reg_DF, 5)
+
+reg_DF_rounded %>% 
+  gt() %>% 
+  tab_header(
+    title = "Logistic Regression Results", # Add a title
+    subtitle = "Predicting Log Odds of Cancellation"# And a subtitle
+  ) %>%
+  fmt_passthrough( # Not sure about this but it works...
+    columns = vars(Variable) # First column: supp (character)
+  )
+
+```
+
+
+```{r examples_for_poster}
+
+#First, find means of all control variables and create vectors with repeated entries
+#This is because we want all these variables to be the same across the different example projects, so we can see the effect of sentiment/low-risk
+popDensity <- rep(mean(ventyx_Operating_Canceled$PopDensity),4)          #60 thousand
+householdMedian <- rep(mean(ventyx_Operating_Canceled$Household_),4)     #$50,525
+viewScore <- rep(mean(ventyx_Operating_Canceled$View_Score),4)           #65 Road Points
+capacity <- rep(mean(ventyx_Operating_Canceled$Capacity),4)              #117 MW
+timelineDays <- rep(mean(ventyx_Operating_Canceled$TimelineDa),4)        #1150 Days
+environMemberships <- rep(mean(ventyx_Operating_Canceled$members_env),4) #1348 Members
+state <- rep("Texas",4)
+
+#Our key variables for comparison
+sentiment <- c(0.1, 0.1, -0.1, -0.1)
+location <- c("Low","High","Low","High")
+
+example_df <- data.frame(state, popDensity, householdMedian, capacity, viewScore, timelineDays, environMemberships, sentiment, location)
+names(example_df) <- c("State","PopDensity","Household_","Capacity","View_Score","TimelineDa","members_env","Google_Sentiment","H_L_W")
+
+pred_probs_example <- predict(logistic_reg_all, newdata=example_df, type='response', se.fit = TRUE)
+pred_probs_example_df <- data.frame(example_df, pred_probs_example$fit, pred_probs_example$se.fit)
+```
+
+```{r case_studies}
+boone <- filter(ventyx_Operating_Canceled, ProjectNam == "BooneCounty")
+minonk <- filter(ventyx_Operating_Canceled, ProjectNam == "MinonkWindFarm")
+
+boone_minonk_df <- ventyx_Operating_Canceled %>% 
+  filter(ProjectNam == "BooneCounty" | ProjectNam == "MinonkWindFarm")
+
+pred_probs_boone_minonk <- predict(logistic_reg_all, newdata=boone_minonk_df, type='response', se.fit = TRUE)
+pred_probs_boone_minonk_df <- data.frame(boone_minonk_df, pred_probs_boone_minonk$fit, pred_probs_boone_minonk$se.fit)
+```
+
