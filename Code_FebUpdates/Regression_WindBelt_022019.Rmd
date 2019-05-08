@@ -481,11 +481,7 @@ jtools::summ(linear_reg_sentiment)
 #For the purposes of this regression, we first want to subset our data into a section that we used to train the model, and a section for testing the predicted probabilities later on.
 ventyx_shuffled <- ventyx_Operating_Canceled[sample(nrow(ventyx_Operating_Canceled)),] #to shuffle dataset
 train <- ventyx_shuffled[1:868,]
-test <- ventyx_shuffled[801:868,]
-
-#To test the reversal of values if we switch "High" impact areas to "Low" and vice verse
-test_reversed <- test %>% 
-  mutate(H_L_W = ifelse(H_L_W == "High", "Low","High"))
+test <- ventyx_shuffled[1:868,]
 
 #Next, we run the logistic regression
 logistic_reg_all <- glm(Canceled ~ TimelineDa + View_Score + Google_Sentiment + PopDensity + Household_ + Capacity + H_L_W + members_env + Google_Sentiment*H_L_W + State, family = binomial, data = train)
@@ -510,26 +506,8 @@ vif(logistic_reg_all) #low multicollinearity
 pred_probs <- predict(logistic_reg_all, newdata=test, type='response', se.fit = TRUE)
 pred_probs_df <- data.frame(test, pred_probs$fit, pred_probs$se.fit)
 pred_probs_df <- pred_probs_df %>% 
-  rename(Probability = pred_probs.fit) %>% 
-  rename(Publicity = Google_Sentiment)
-
-#Now predict probabilities for reversed values
-pred_probs_reversed <- predict(logistic_reg_all, newdata=test_reversed, type='response', se.fit = TRUE)
-pred_probs_df_reversed <- data.frame(test, pred_probs_reversed$fit, pred_probs_reversed$se.fit)
-pred_probs_df_reversed <- pred_probs_df_reversed %>% 
-  rename(Probability = pred_probs_reversed.fit) %>% 
-  rename(Publicity = Google_Sentiment)
-
-#Probability means
-mean(pred_probs_df$Probability)
-mean(pred_probs_df_reversed$pred_probs_reversed.fit)
-
-# pred_low <- pred_probs_df %>% 
-#   filter(H_L_W == "Low")
-# pred_high <- pred_probs_df %>% 
-#   filter(H_L_W == "High")
-# mean(pred_low$Probability)
-# mean(pred_high$Probability)
+  mutate(Probability = pred_probs.fit) %>% 
+  mutate(Publicity = Google_Sentiment)
 
 #To evaluate the misclassification of predicted cancelations and actual cancelations -- essentially, how accurate are the predictions?
 optCutOff <- optimalCutoff(test$Canceled, pred_probs$fit)
@@ -829,6 +807,7 @@ state <- rep("Texas",4)
 
 #Our key variables for comparison
 sentiment <- c(0.1, 0.1, -0.1, -0.1)
+sentiment <- c(0, 0, 0, 0)
 location <- c("Low","High","Low","High")
 
 example_df <- data.frame(state, popDensity, householdMedian, capacity, viewScore, timelineDays, environMemberships, sentiment, location)
